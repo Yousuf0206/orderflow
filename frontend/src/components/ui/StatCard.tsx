@@ -1,0 +1,33 @@
+import type { LucideIcon } from "lucide-react";
+
+interface StatCardProps {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  tone?: "default" | "success" | "warning" | "danger";
+  hint?: string;
+}
+
+const TONE_STYLES: Record<NonNullable<StatCardProps["tone"]>, string> = {
+  default: "bg-brand-50 text-brand-600 dark:bg-brand-500/10 dark:text-brand-400",
+  success: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+  warning: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+  danger: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+};
+
+export default function StatCard({ label, value, icon: Icon, tone = "default", hint }: StatCardProps) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{value}</p>
+          {hint && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{hint}</p>}
+        </div>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TONE_STYLES[tone]}`}>
+          <Icon size={20} strokeWidth={2} aria-hidden="true" />
+        </div>
+      </div>
+    </div>
+  );
+}

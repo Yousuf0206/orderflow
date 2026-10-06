@@ -1,0 +1,36 @@
+# Local Claude Code / Ruflo tooling (not application source) — generic agent
+# scaffolding, marketplace skills, and runtime state installed by `claude
+# plugin install` / `ruflo init`. Not needed to run, build, or deploy the app.
+.agents/
+.claude/
+.claude-flow/
+.swarm/
+.mcp.json
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Backend (Python/FastAPI)
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.egg-info/
+backend/.pytest_cache/
+backend/.ruff_cache/
+backend/.env
+backend/src/*.egg-info/
+
+# Frontend (Node/React)
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.env
+frontend/.env.local
+frontend/tsconfig.tsbuildinfo
+
+# Universal
+.DS_Store
+Thumbs.db
+*.log
