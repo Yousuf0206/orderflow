@@ -86,3 +86,32 @@ tests+build, and a Docker build sanity check on every push/PR.
 - The initial Alembic migration was hand-written (no live database was available to
   autogenerate against) — review it against a real Postgres instance, and use
   `alembic revision --autogenerate` for every migration after this one.
+
+## Known limitations (launch hardening, 2026-10-07)
+
+What's genuinely launch-ready vs. still trial-grade after the hardening pass
+(see `api-examples.md` and `SMOKE_CHECKLIST.md` for what's been verified):
+
+- **Trial expiry is lazy, not scheduled.** `check_trial_expiry` runs on every
+  authenticated request (via `get_tenant_context`), not on a timer. An organization
+  whose trial has expired won't flip to read-only until its next authenticated
+  request — fine in practice, but not instantaneous.
+- **Plan limits are per-organization counts, not usage trends.** `max_users` counts
+  all memberships (including pending invites); `max_active_pos` counts
+  non-deleted POs. There's no grace period or soft warning before the hard 403 —
+  the first request past the limit is rejected outright.
+- **No automated billing reconciliation beyond the Stripe webhook.** If a webhook
+  delivery is missed (Stripe retries failed webhooks, but this isn't polled or
+  reconciled on a schedule), a subscription could drift out of sync with Stripe's
+  actual state until the next webhook event arrives.
+- **Due Soon / Overdue notifications require an external scheduler** (see above) —
+  nothing pages anyone if that script isn't scheduled.
+- **No file/logo upload** — `Organization.logo_url` exists as a field but there's no
+  upload endpoint or UI for it yet.
+- **Single region, no read replicas, no caching layer** — fine for early trial
+  volume, not evaluated under load.
+- **Email is console-logged in development** and needs a real provider
+  (SES/Postmark/SendGrid) wired into `src/services/email.py` before relying on
+  password-reset or invite emails actually reaching anyone outside of local dev.
+- **This doc and `api-examples.md` are the frozen contract** as of this pass — if
+  a schema changes, update both alongside the code, not after the fact.
