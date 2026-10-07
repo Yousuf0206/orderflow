@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { isAuthenticated } from "../../services/auth";
 
 const PLANS = [
   { name: "Starter", price: "$29/mo", users: 5, pos: 100 },
@@ -10,14 +11,18 @@ const PLANS = [
 ];
 
 export default function Pricing() {
+  const loggedIn = isAuthenticated();
+  const ctaTo = loggedIn ? "/billing" : "/signup";
+  const ctaLabel = loggedIn ? "Go to billing" : "Start trial";
+
   return (
     <div className="min-h-dvh bg-white">
       <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 p-4">
         <Link to="/" className="text-lg font-semibold text-slate-900">
           OrderFlow
         </Link>
-        <Link to="/signup">
-          <Button>Start free trial</Button>
+        <Link to={ctaTo}>
+          <Button>{loggedIn ? "Go to billing" : "Start free trial"}</Button>
         </Link>
       </header>
       <main className="mx-auto max-w-4xl px-4 py-12">
@@ -29,8 +34,8 @@ export default function Pricing() {
               <p className="text-2xl font-bold text-slate-900">{plan.price}</p>
               <p className="text-sm text-slate-500">{plan.users} users</p>
               <p className="text-sm text-slate-500">{plan.pos} active POs</p>
-              <Link to="/signup" className="block pt-2">
-                <Button className="w-full">Start trial</Button>
+              <Link to={ctaTo} className="block pt-2">
+                <Button className="w-full">{ctaLabel}</Button>
               </Link>
             </Card>
           ))}
