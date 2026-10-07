@@ -37,10 +37,12 @@ export default function Reports() {
       const tokens = getTokens();
       const url = `${API_BASE}/reports/${selected}/export?format=${format}`;
       const resp = await fetch(url, { headers: { Authorization: `Bearer ${tokens?.access_token}` } });
+      const disposition = resp.headers.get("content-disposition") ?? "";
+      const filenameMatch = /filename="?([^"]+)"?/.exec(disposition);
       const blob = await resp.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `${selected}.${format}`;
+      link.download = filenameMatch?.[1] ?? `${selected}.${format}`;
       link.click();
       URL.revokeObjectURL(link.href);
     } finally {

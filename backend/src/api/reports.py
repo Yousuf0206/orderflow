@@ -1,5 +1,6 @@
 import csv
 import io
+import re
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -24,6 +25,16 @@ REPORT_TITLES = {
     "overdue-orders": "Overdue Orders",
     "dispatch-history": "Dispatch History",
 }
+
+
+def _slugify(name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+    return slug or "org"
+
+
+def _export_filename(org_name: str, report: str, ext: str) -> str:
+    date = datetime.now(UTC).strftime("%Y-%m-%d")
+    return f"{_slugify(org_name)}-{report}-{date}.{ext}"
 
 
 def _remaining_by_party(tenant: TenantContext) -> list[dict]:
@@ -168,18 +179,19 @@ def export_report(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown report")
     rows = REPORTS[report](tenant)
     fieldnames = list(rows[0].keys()) if rows else []
+    org_name = tenant.organization.name
 
     if format == "pdf":
         pdf_bytes = _build_pdf(
             title=REPORT_TITLES.get(report, report),
-            org_name=tenant.organization.name,
+            org_name=org_name,
             fieldnames=fieldnames,
             rows=rows,
         )
         return StreamingResponse(
             iter([pdf_bytes]),
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={report}.pdf"},
+            headers={"Content-Disposition": f"attachment; filename={_export_filename(org_name, report, 'pdf')}"},
         )
 
     if format == "xlsx":
@@ -194,7 +206,7 @@ def export_report(
         return StreamingResponse(
             buf,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={report}.xlsx"},
+            headers={"Content-Disposition": f"attachment; filename={_export_filename(org_name, report, 'xlsx')}"},
         )
 
     buf = io.StringIO()
@@ -205,5 +217,5 @@ def export_report(
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={report}.csv"},
+        headers={"Content-Disposition": f"attachment; filename={_export_filename(org_name, report, 'csv')}"},
     )
