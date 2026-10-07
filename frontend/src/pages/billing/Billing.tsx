@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { Link } from "react-router-dom";
+
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import PageHeader from "../../components/ui/PageHeader";
@@ -98,6 +100,18 @@ export default function Billing() {
           </Card>
         ))}
       </div>
+
+      <p className="text-center text-xs text-slate-400 dark:text-slate-500">
+        Upgrading is subject to our{" "}
+        <Link to="/terms" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link to="/privacy" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </div>
   );
 }

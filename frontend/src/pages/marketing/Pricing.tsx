@@ -35,6 +35,20 @@ export default function Pricing() {
             </Card>
           ))}
         </div>
+        <p className="mt-8 text-center text-sm text-slate-500">
+          Every plan starts with a free 14-day trial — no credit card required.
+        </p>
+        <p className="mt-2 text-center text-xs text-slate-400">
+          By starting a trial, you agree to our{" "}
+          <Link to="/terms" className="underline hover:text-slate-600">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link to="/privacy" className="underline hover:text-slate-600">
+            Privacy Policy
+          </Link>
+          .
+        </p>
       </main>
     </div>
   );

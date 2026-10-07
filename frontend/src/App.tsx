@@ -10,6 +10,8 @@ import SuperAdmin from "./pages/admin/SuperAdmin";
 import AuditLog from "./pages/audit/AuditLog";
 import Billing from "./pages/billing/Billing";
 import Dashboard from "./pages/dashboard/Dashboard";
+import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
+import TermsOfService from "./pages/legal/TermsOfService";
 import Landing from "./pages/marketing/Landing";
 import Pricing from "./pages/marketing/Pricing";
 import Onboarding from "./pages/onboarding/Onboarding";
@@ -28,6 +30,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/pricing" element={<Pricing />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<TermsOfService />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />

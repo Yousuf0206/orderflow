@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
+import { ApiError, describeApiError } from "../../services/apiClient";
 import { signup } from "../../services/auth";
 
 export default function Signup() {
@@ -19,8 +20,12 @@ export default function Signup() {
     try {
       await signup(email, password, organizationName);
       navigate("/onboarding");
-    } catch {
-      setError("Could not create account. Try a different email.");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        setError("An account with that email already exists. Try logging in instead.");
+      } else {
+        setError(describeApiError(err, "Could not create account. Please try again."));
+      }
     } finally {
       setLoading(false);
     }
@@ -76,6 +81,17 @@ export default function Signup() {
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Creating account..." : "Start free trial"}
         </Button>
+        <p className="text-center text-xs text-slate-400 dark:text-slate-500">
+          By continuing, you agree to our{" "}
+          <Link to="/terms" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+            Terms of Service
+          </Link>{" "}
+          and{" "}
+          <Link to="/privacy" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+            Privacy Policy
+          </Link>
+          .
+        </p>
         <p className="text-center text-sm text-slate-500 dark:text-slate-400">
           Already have an account? <Link to="/login" className="font-medium text-brand-600 hover:underline dark:text-brand-400">Log in</Link>
         </p>

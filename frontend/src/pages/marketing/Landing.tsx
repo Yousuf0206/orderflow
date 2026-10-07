@@ -187,6 +187,12 @@ export default function Landing() {
             <Link to="/login" className="hover:text-slate-900">
               Log in
             </Link>
+            <Link to="/terms" className="hover:text-slate-900">
+              Terms
+            </Link>
+            <Link to="/privacy" className="hover:text-slate-900">
+              Privacy
+            </Link>
           </div>
         </div>
       </footer>

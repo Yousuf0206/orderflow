@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
+import { ApiError, describeApiError } from "../../services/apiClient";
 import { login } from "../../services/auth";
 
 export default function Login() {
@@ -18,8 +19,12 @@ export default function Login() {
     try {
       await login(email, password);
       navigate("/dashboard");
-    } catch {
-      setError("Invalid email or password");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        setError("Invalid email or password.");
+      } else {
+        setError(describeApiError(err, "Could not log in. Please try again."));
+      }
     } finally {
       setLoading(false);
     }

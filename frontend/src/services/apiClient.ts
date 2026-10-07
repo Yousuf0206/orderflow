@@ -27,6 +27,29 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Turns a thrown error into a user-facing message that reflects the real
+ * cause, falling back to `fallback` only for errors this function can't
+ * interpret (network failures, unexpected 500s, etc).
+ */
+export function describeApiError(err: unknown, fallback: string): string {
+  if (!(err instanceof ApiError)) return fallback;
+
+  const detail = (err.body as { detail?: unknown } | null)?.detail;
+
+  if (err.status === 422 && Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0] as { msg?: string; loc?: unknown[] };
+    const field = Array.isArray(first.loc) ? first.loc[first.loc.length - 1] : undefined;
+    return field ? `${field}: ${first.msg ?? "Invalid value"}` : (first.msg ?? fallback);
+  }
+
+  if (typeof detail === "string") return detail;
+
+  if (err.status >= 500) return "Something went wrong on our end. Please try again in a moment.";
+
+  return fallback;
+}
+
 async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const tokens = getTokens();
   const headers = new Headers(options.headers);
