@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { ScrollText } from "lucide-react";
 
+import { Card } from "../../components/ui/Card";
+import EmptyState from "../../components/ui/EmptyState";
+import PageHeader from "../../components/ui/PageHeader";
+import { TableSkeleton } from "../../components/ui/Skeleton";
 import { api } from "../../services/apiClient";
 
 interface AuditEntry {
@@ -15,34 +20,38 @@ export default function AuditLog() {
   const { data, isLoading } = useQuery({ queryKey: ["audit-log"], queryFn: () => api.get<AuditEntry[]>("/audit-log") });
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Audit Log</h1>
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead>
-            <tr className="text-left border-b text-slate-500">
-              <th className="px-4 py-2">When</th>
-              <th className="px-4 py-2">Actor</th>
-              <th className="px-4 py-2">Action</th>
-              <th className="px-4 py-2">Entity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {isLoading && <tr><td className="px-4 py-4">Loading...</td></tr>}
-            {(data ?? []).map((e) => (
-              <tr key={e.id} className="border-b last:border-b-0">
-                <td className="px-4 py-2">{new Date(e.created_at).toLocaleString()}</td>
-                <td className="px-4 py-2">{e.actor_email}</td>
-                <td className="px-4 py-2 capitalize">{e.action}</td>
-                <td className="px-4 py-2">{e.entity_type} ({e.entity_id.slice(0, 8)})</td>
+    <div className="space-y-6">
+      <PageHeader title="Audit Log" description="A record of actions taken across your organization." />
+      <Card className="overflow-x-auto">
+        {isLoading ? (
+          <TableSkeleton rows={6} cols={4} />
+        ) : (data ?? []).length === 0 ? (
+          <EmptyState icon={ScrollText} title="No audit entries yet" description="Actions taken in your organization will show up here." />
+        ) : (
+          <table className="w-full min-w-[600px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
+                <th className="px-5 py-3">When</th>
+                <th className="px-5 py-3">Actor</th>
+                <th className="px-5 py-3">Action</th>
+                <th className="px-5 py-3">Entity</th>
               </tr>
-            ))}
-            {!isLoading && (data ?? []).length === 0 && (
-              <tr><td className="px-4 py-4 text-slate-500" colSpan={4}>No audit entries yet.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {(data ?? []).map((e) => (
+                <tr key={e.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{new Date(e.created_at).toLocaleString()}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{e.actor_email}</td>
+                  <td className="px-5 py-3 capitalize text-slate-900 dark:text-white">{e.action}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                    {e.entity_type} ({e.entity_id.slice(0, 8)})
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
     </div>
   );
 }

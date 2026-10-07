@@ -1,6 +1,11 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
+import Button from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { FormField, Input, Select } from "../../components/ui/Field";
+import PageHeader from "../../components/ui/PageHeader";
+import { TableSkeleton } from "../../components/ui/Skeleton";
 import { api } from "../../services/apiClient";
 
 interface Member {
@@ -15,20 +20,24 @@ const ROLES = ["owner", "manager", "staff", "viewer"];
 
 export default function TeamMembers() {
   const queryClient = useQueryClient();
-  const { data } = useQuery({ queryKey: ["members"], queryFn: () => api.get<Member[]>("/org/members") });
+  const { data, isLoading } = useQuery({ queryKey: ["members"], queryFn: () => api.get<Member[]>("/org/members") });
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("staff");
   const [error, setError] = useState<string | null>(null);
+  const [inviting, setInviting] = useState(false);
 
   async function invite(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setInviting(true);
     try {
       await api.post("/org/members/invite", { email, role });
       setEmail("");
       queryClient.invalidateQueries({ queryKey: ["members"] });
     } catch {
       setError("Could not send invite (already a member, or invalid role?).");
+    } finally {
+      setInviting(false);
     }
   }
 
@@ -43,60 +52,85 @@ export default function TeamMembers() {
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Team</h1>
-      <form onSubmit={invite} className="bg-white rounded-lg shadow p-4 flex flex-wrap gap-2 items-end">
-        {error && <p className="text-sm text-red-600 w-full">{error}</p>}
-        <div>
-          <label className="block text-sm mb-1">Email</label>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border rounded px-3 py-2"
-          />
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Role</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="border rounded px-3 py-2">
-            {ROLES.map((r) => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
-        </div>
-        <button className="bg-slate-900 text-white rounded px-4 py-2 text-sm">Invite</button>
-      </form>
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm min-w-[500px]">
-          <thead>
-            <tr className="text-left border-b text-slate-500">
-              <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Role</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data ?? []).map((m) => (
-              <tr key={m.id} className="border-b last:border-b-0">
-                <td className="px-4 py-2">{m.email}</td>
-                <td className="px-4 py-2">
-                  <select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)} className="border rounded px-2 py-1">
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-2">{m.accepted ? "Active" : "Pending"}</td>
-                <td className="px-4 py-2">
-                  <button onClick={() => remove(m.id)} className="text-red-600 text-xs">Remove</button>
-                </td>
+    <div className="space-y-6">
+      <PageHeader title="Team" description="Invite teammates and manage their access." />
+
+      <Card>
+        <form onSubmit={invite} className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          {error && (
+            <p role="alert" className="sm:col-span-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
+              {error}
+            </p>
+          )}
+          <FormField label="Email" required>
+            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          </FormField>
+          <FormField label="Role">
+            <Select value={role} onChange={(e) => setRole(e.target.value)} className="sm:w-36">
+              {ROLES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+          <Button type="submit" disabled={inviting} className="w-full sm:w-auto">
+            {inviting ? "Inviting..." : "Invite"}
+          </Button>
+        </form>
+      </Card>
+
+      <Card className="overflow-x-auto">
+        {isLoading ? (
+          <TableSkeleton rows={4} cols={4} />
+        ) : (
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
+                <th className="px-5 py-3">Email</th>
+                <th className="px-5 py-3">Role</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {(data ?? []).map((m) => (
+                <tr key={m.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
+                  <td className="px-5 py-3 text-slate-900 dark:text-white">{m.email}</td>
+                  <td className="px-5 py-3">
+                    <Select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)} className="min-h-0 py-1.5">
+                      {ROLES.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </Select>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                        m.accepted
+                          ? "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20"
+                          : "bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/20"
+                      }`}
+                    >
+                      {m.accepted ? "Active" : "Pending"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={() => remove(m.id)}
+                      className="rounded-md px-2 py-1.5 text-xs font-medium text-red-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 dark:text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
     </div>
   );
 }

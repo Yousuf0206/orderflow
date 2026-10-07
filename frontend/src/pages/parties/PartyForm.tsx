@@ -1,66 +1,82 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import Button from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import { FormField, Input } from "../../components/ui/Field";
+import PageHeader from "../../components/ui/PageHeader";
 import { api, ApiError } from "../../services/apiClient";
+
+interface FormState {
+  party_code: string;
+  party_name: string;
+  city: string;
+  contact_person: string;
+  phone: string;
+}
 
 export default function PartyForm() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ party_code: "", party_name: "", city: "", contact_person: "", phone: "" });
-  const [error, setError] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>({ party_code: "", party_name: "", city: "", contact_person: "", phone: "" });
+  const [formError, setFormError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const codeRef = useRef<HTMLInputElement>(null);
+
+  function update<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
+    setCodeError(null);
     setSaving(true);
     try {
       const party = await api.post<{ id: string }>("/parties", form);
       navigate(`/parties/${party.id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? "That party code is already in use." : "Could not save party.");
+      if (err instanceof ApiError) {
+        setCodeError("That party code is already in use.");
+        codeRef.current?.focus();
+      } else {
+        setFormError("Could not save party. Please try again.");
+      }
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <div className="max-w-lg space-y-4">
-      <h1 className="text-2xl font-semibold">New Party</h1>
-      <form onSubmit={onSubmit} className="bg-white rounded-lg shadow p-4 space-y-3">
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <Field label="Party Code" value={form.party_code} onChange={(v) => setForm({ ...form, party_code: v })} required />
-        <Field label="Party Name" value={form.party_name} onChange={(v) => setForm({ ...form, party_name: v })} required />
-        <Field label="City" value={form.city} onChange={(v) => setForm({ ...form, city: v })} />
-        <Field label="Contact Person" value={form.contact_person} onChange={(v) => setForm({ ...form, contact_person: v })} />
-        <Field label="Phone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-        <button disabled={saving} className="bg-slate-900 text-white rounded px-4 py-2 text-sm disabled:opacity-50">
-          {saving ? "Saving..." : "Save Party"}
-        </button>
-      </form>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  required?: boolean;
-}) {
-  return (
-    <div>
-      <label className="block text-sm mb-1">{label}</label>
-      <input
-        required={required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full border rounded px-3 py-2"
-      />
+    <div className="mx-auto max-w-xl space-y-4">
+      <PageHeader title="New Party" description="Add the customer or supplier you'll track purchase orders against." />
+      <Card>
+        <form onSubmit={onSubmit} className="space-y-4 p-5">
+          {formError && (
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
+              {formError}
+            </p>
+          )}
+          <FormField label="Party Code" required error={codeError ?? undefined}>
+            <Input ref={codeRef} required value={form.party_code} onChange={(e) => update("party_code", e.target.value)} />
+          </FormField>
+          <FormField label="Party Name" required>
+            <Input required value={form.party_name} onChange={(e) => update("party_name", e.target.value)} />
+          </FormField>
+          <FormField label="City">
+            <Input value={form.city} onChange={(e) => update("city", e.target.value)} />
+          </FormField>
+          <FormField label="Contact Person">
+            <Input value={form.contact_person} onChange={(e) => update("contact_person", e.target.value)} />
+          </FormField>
+          <FormField label="Phone">
+            <Input type="tel" value={form.phone} onChange={(e) => update("phone", e.target.value)} />
+          </FormField>
+          <Button type="submit" disabled={saving} className="w-full sm:w-auto">
+            {saving ? "Saving..." : "Save Party"}
+          </Button>
+        </form>
+      </Card>
     </div>
   );
 }

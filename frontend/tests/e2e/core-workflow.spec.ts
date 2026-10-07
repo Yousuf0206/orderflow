@@ -36,10 +36,10 @@ test("sign up, create PO, record dispatch, see live remaining balance", async ({
   await page.getByRole("button", { name: /create purchase order/i }).click();
 
   await expect(page).toHaveURL(/\/purchase-orders\/.+/);
-  await expect(page.getByText("100")).toBeVisible();
+  await expect(page.getByText("100").first()).toBeVisible();
 
   await page.getByLabel("Qty").fill("40");
   await page.getByRole("button", { name: /add dispatch/i }).click();
 
-  await expect(page.getByText("60")).toBeVisible();
+  await expect(page.getByText("60").first()).toBeVisible();
 });

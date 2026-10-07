@@ -1,6 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import { Inbox } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
+import { Card } from "../../components/ui/Card";
+import EmptyState from "../../components/ui/EmptyState";
+import PageHeader from "../../components/ui/PageHeader";
+import { Skeleton } from "../../components/ui/Skeleton";
+import { StatusBadge } from "../../components/ui/Badge";
 import { api } from "../../services/apiClient";
 
 interface OpenOrder {
@@ -17,6 +23,8 @@ interface PartyDetailData {
   open_orders: OpenOrder[];
 }
 
+const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+
 export default function PartyDetail() {
   const { id } = useParams();
   const { data, isLoading } = useQuery({
@@ -25,50 +33,55 @@ export default function PartyDetail() {
     enabled: !!id,
   });
 
-  if (isLoading) return <p>Loading...</p>;
-  if (!data) return null;
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Loading party…" />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">{data.party.party_name}</h1>
-        <p className="text-slate-500 text-sm">
-          {data.party.party_code} {data.party.city ? `· ${data.party.city}` : ""}
-        </p>
-      </div>
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm min-w-[500px]">
-          <thead>
-            <tr className="text-left border-b text-slate-500">
-              <th className="px-4 py-2">PO Number</th>
-              <th className="px-4 py-2">Material</th>
-              <th className="px-4 py-2">Remaining</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">Due</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.open_orders.map((po) => (
-              <tr key={po.id} className="border-b last:border-b-0 hover:bg-slate-50">
-                <td className="px-4 py-2">
-                  <Link to={`/purchase-orders/${po.id}`} className="underline">
-                    {po.po_number}
-                  </Link>
-                </td>
-                <td className="px-4 py-2">{po.material}</td>
-                <td className="px-4 py-2">{po.remaining_balance}</td>
-                <td className="px-4 py-2 capitalize">{po.status.replace("_", " ")}</td>
-                <td className="px-4 py-2">{po.due_date}</td>
+    <div className="space-y-6">
+      <PageHeader
+        title={data.party.party_name}
+        description={`${data.party.party_code}${data.party.city ? ` · ${data.party.city}` : ""}`}
+      />
+      <Card className="overflow-x-auto">
+        {data.open_orders.length === 0 ? (
+          <EmptyState icon={Inbox} title="No open orders for this party" />
+        ) : (
+          <table className="w-full min-w-[500px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
+                <th className="px-5 py-3">PO Number</th>
+                <th className="px-5 py-3">Material</th>
+                <th className="px-5 py-3">Remaining</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3">Due</th>
               </tr>
-            ))}
-            {data.open_orders.length === 0 && (
-              <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={5}>No open orders for this party.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {data.open_orders.map((po) => (
+                <tr key={po.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50">
+                  <td className="px-5 py-3">
+                    <Link to={`/purchase-orders/${po.id}`} className="font-medium text-slate-900 hover:text-brand-600 hover:underline dark:text-white">
+                      {po.po_number}
+                    </Link>
+                  </td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{po.material}</td>
+                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{numberFmt.format(po.remaining_balance)}</td>
+                  <td className="px-5 py-3">
+                    <StatusBadge status={po.status} />
+                  </td>
+                  <td className="px-5 py-3 text-slate-500 dark:text-slate-400">{po.due_date}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
     </div>
   );
 }

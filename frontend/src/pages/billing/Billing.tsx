@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
+import Button from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import PageHeader from "../../components/ui/PageHeader";
+import { Skeleton } from "../../components/ui/Skeleton";
 import { api } from "../../services/apiClient";
 
 interface BillingInfo {
@@ -14,49 +19,83 @@ const PLANS = ["starter", "business", "pro"];
 
 export default function Billing() {
   const { data, isLoading } = useQuery({ queryKey: ["billing"], queryFn: () => api.get<BillingInfo>("/billing") });
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function upgrade(plan: string) {
+    setNotice(null);
     try {
       const resp = await api.post<{ checkout_url: string }>("/billing/checkout-session", { plan_tier: plan });
       window.location.href = resp.checkout_url;
     } catch {
-      alert("Stripe is not configured on this deployment yet. Set STRIPE_SECRET_KEY and price IDs on the backend.");
+      setNotice("Stripe is not configured on this deployment yet. Set STRIPE_SECRET_KEY and price IDs on the backend.");
     }
   }
 
   async function openPortal() {
+    setNotice(null);
     try {
       const resp = await api.post<{ portal_url: string }>("/billing/portal-session");
       window.location.href = resp.portal_url;
     } catch {
-      alert("No billing account on file yet — upgrade to a paid plan first.");
+      setNotice("No billing account on file yet — upgrade to a paid plan first.");
     }
   }
 
-  if (isLoading || !data) return <p>Loading...</p>;
+  if (isLoading || !data) {
+    return (
+      <div className="max-w-2xl space-y-4">
+        <PageHeader title="Billing" />
+        <Skeleton className="h-28" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 max-w-2xl">
-      <h1 className="text-2xl font-semibold">Billing</h1>
+    <div className="max-w-2xl space-y-4">
+      <PageHeader title="Billing" description="Manage your plan and payment details." />
+
+      {notice && (
+        <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+          {notice}
+        </p>
+      )}
+
       {data.is_read_only_locked && (
-        <div className="bg-red-50 border border-red-300 text-red-800 text-sm p-3 rounded">
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
           Your trial has ended. The organization is in read-only mode — upgrade to resume creating and editing records.
         </div>
       )}
-      <div className="bg-white rounded-lg shadow p-4 space-y-2">
-        <p>Current plan: <span className="font-medium capitalize">{data.plan_tier}</span></p>
-        {data.trial_ends_at && <p className="text-sm text-slate-500">Trial ends: {new Date(data.trial_ends_at).toLocaleDateString()}</p>}
-        <p className="text-sm text-slate-500">Limits: {data.max_users} users, {data.max_active_pos} active POs</p>
-        <button onClick={openPortal} className="border rounded px-3 py-2 text-sm">Manage billing</button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+      <Card className="space-y-2 p-5">
+        <p className="text-sm text-slate-700 dark:text-slate-200">
+          Current plan: <span className="font-medium capitalize text-slate-900 dark:text-white">{data.plan_tier}</span>
+        </p>
+        {data.trial_ends_at && (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Trial ends: {new Date(data.trial_ends_at).toLocaleDateString()}
+          </p>
+        )}
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          Limits: {data.max_users} users, {data.max_active_pos} active POs
+        </p>
+        <Button variant="secondary" onClick={openPortal}>
+          Manage billing
+        </Button>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {PLANS.map((plan) => (
-          <div key={plan} className="bg-white rounded-lg shadow p-4 space-y-2">
-            <h2 className="font-medium capitalize">{plan}</h2>
-            <button onClick={() => upgrade(plan)} className="w-full bg-slate-900 text-white rounded py-2 text-sm">
+          <Card key={plan} className="space-y-3 p-5 text-center">
+            <h2 className="font-medium capitalize text-slate-900 dark:text-white">{plan}</h2>
+            <Button onClick={() => upgrade(plan)} className="w-full">
               Choose {plan}
-            </button>
-          </div>
+            </Button>
+          </Card>
         ))}
       </div>
     </div>

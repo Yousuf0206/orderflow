@@ -1,24 +1,34 @@
 import { Link } from "react-router-dom";
 
+import Button from "../../components/ui/Button";
+
 export default function Landing() {
   return (
-    <div className="min-h-screen">
-      <header className="flex justify-between items-center p-4 max-w-5xl mx-auto">
-        <div className="font-semibold text-lg">OrderFlow</div>
-        <nav className="flex gap-4 items-center text-sm">
-          <Link to="/pricing">Pricing</Link>
-          <Link to="/login">Log in</Link>
-          <Link to="/signup" className="bg-slate-900 text-white rounded px-3 py-1.5">Start free trial</Link>
+    <div className="min-h-dvh bg-white">
+      <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 p-4">
+        <div className="text-lg font-semibold text-slate-900">OrderFlow</div>
+        <nav className="flex flex-wrap items-center gap-4 text-sm">
+          <Link to="/pricing" className="text-slate-600 hover:text-slate-900">
+            Pricing
+          </Link>
+          <Link to="/login" className="text-slate-600 hover:text-slate-900">
+            Log in
+          </Link>
+          <Link to="/signup">
+            <Button>Start free trial</Button>
+          </Link>
         </nav>
       </header>
-      <main className="max-w-3xl mx-auto px-4 py-16 text-center space-y-6">
-        <h1 className="text-4xl font-bold">Track Purchase Orders and partial dispatches, live.</h1>
-        <p className="text-lg text-slate-600">
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-16 text-center">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">
+          Track Purchase Orders and partial dispatches, live.
+        </h1>
+        <p className="text-base text-slate-600 sm:text-lg">
           OrderFlow keeps your remaining balances accurate in real time — built for trading
           companies and material dealers who deliver in parts, not all at once.
         </p>
-        <Link to="/signup" className="inline-block bg-slate-900 text-white rounded px-6 py-3">
-          Start your free trial
+        <Link to="/signup" className="inline-block">
+          <Button className="px-6 py-3 text-base">Start your free trial</Button>
         </Link>
       </main>
     </div>

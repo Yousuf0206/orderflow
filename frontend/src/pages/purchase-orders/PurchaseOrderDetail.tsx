@@ -1,7 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PackageCheck, PackageOpen, Truck, Wallet } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 
+import Button from "../../components/ui/Button";
+import { Card, CardHeader } from "../../components/ui/Card";
+import EmptyState from "../../components/ui/EmptyState";
+import { FormField, Input } from "../../components/ui/Field";
+import PageHeader from "../../components/ui/PageHeader";
+import { KpiSkeletonRow, Skeleton, TableSkeleton } from "../../components/ui/Skeleton";
+import StatCard from "../../components/ui/StatCard";
 import { api } from "../../services/apiClient";
 
 interface PurchaseOrder {
@@ -24,6 +32,8 @@ interface Dispatch {
   remarks: string | null;
 }
 
+const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+
 export default function PurchaseOrderDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
@@ -31,16 +41,20 @@ export default function PurchaseOrderDetail() {
   const [warning, setWarning] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { data: po } = useQuery({
+  const { data: po, isLoading: poLoading } = useQuery({
     queryKey: ["purchase-order", id],
     queryFn: () => api.get<PurchaseOrder>(`/purchase-orders/${id}`),
     enabled: !!id,
   });
-  const { data: dispatches } = useQuery({
+  const { data: dispatches, isLoading: dispatchesLoading } = useQuery({
     queryKey: ["dispatches", id],
     queryFn: () => api.get<Dispatch[]>(`/purchase-orders/${id}/dispatches`),
     enabled: !!id,
   });
+
+  function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function submitDispatch(confirm: boolean) {
     setSaving(true);
@@ -62,120 +76,117 @@ export default function PurchaseOrderDetail() {
     }
   }
 
-  if (!po) return <p>Loading...</p>;
+  if (poLoading || !po) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Loading purchase order…" />
+        <KpiSkeletonRow count={3} />
+        <Skeleton className="h-64" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{po.po_number}</h1>
-        <p className="text-slate-500 text-sm">{po.material} · {po.unit} · Due {po.due_date}</p>
+      <PageHeader title={po.po_number} description={`${po.material} · ${po.unit} · Due ${po.due_date}`} />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Ordered" value={numberFmt.format(po.ordered_qty)} icon={PackageOpen} />
+        <StatCard label="Dispatched" value={numberFmt.format(po.total_dispatched)} icon={Truck} tone="success" />
+        <StatCard label="Remaining" value={numberFmt.format(po.remaining_balance)} icon={Wallet} tone="warning" />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <Stat label="Ordered" value={po.ordered_qty} />
-        <Stat label="Dispatched" value={po.total_dispatched} />
-        <Stat label="Remaining" value={po.remaining_balance} />
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-4 space-y-3">
-        <h2 className="font-medium">Record a Dispatch</h2>
-        {warning && (
-          <div className="bg-amber-50 border border-amber-300 text-amber-800 text-sm p-3 rounded space-y-2">
-            <p>{warning}</p>
-            <button
-              onClick={() => submitDispatch(true)}
-              className="bg-amber-600 text-white rounded px-3 py-1.5 text-sm"
+      <Card>
+        <CardHeader>
+          <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Record a Dispatch</h2>
+        </CardHeader>
+        <div className="space-y-4 p-5">
+          {warning && (
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="space-y-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
             >
-              Confirm anyway
-            </button>
-          </div>
+              <p>{warning}</p>
+              <button
+                type="button"
+                onClick={() => submitDispatch(true)}
+                className="inline-flex min-h-[2.25rem] items-center justify-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+              >
+                Confirm anyway
+              </button>
+            </div>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitDispatch(false);
+            }}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2"
+          >
+            <FormField label="Dispatch Date" required>
+              <Input
+                type="date"
+                required
+                value={form.dispatch_date}
+                onChange={(e) => update("dispatch_date", e.target.value)}
+              />
+            </FormField>
+            <FormField label="Qty" required>
+              <Input
+                type="number"
+                min="0"
+                step="any"
+                inputMode="decimal"
+                required
+                value={form.qty}
+                onChange={(e) => update("qty", e.target.value)}
+              />
+            </FormField>
+            <FormField label="Vehicle / Ref">
+              <Input value={form.vehicle_ref} onChange={(e) => update("vehicle_ref", e.target.value)} />
+            </FormField>
+            <FormField label="Remarks">
+              <Input value={form.remarks} onChange={(e) => update("remarks", e.target.value)} />
+            </FormField>
+            <Button type="submit" disabled={saving} className="sm:col-span-2">
+              {saving ? "Saving..." : "Add Dispatch"}
+            </Button>
+          </form>
+        </div>
+      </Card>
+
+      <Card className="overflow-x-auto">
+        <CardHeader>
+          <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Dispatch History</h2>
+        </CardHeader>
+        {dispatchesLoading ? (
+          <TableSkeleton rows={4} cols={4} />
+        ) : (dispatches ?? []).length === 0 ? (
+          <EmptyState icon={PackageCheck} title="No dispatches recorded yet" description="Dispatches you record above will appear here." />
+        ) : (
+          <table className="w-full min-w-[500px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
+                <th className="px-5 py-3">Date</th>
+                <th className="px-5 py-3">Qty</th>
+                <th className="px-5 py-3">Vehicle/Ref</th>
+                <th className="px-5 py-3">Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(dispatches ?? []).map((d) => (
+                <tr key={d.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{d.dispatch_date}</td>
+                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{numberFmt.format(d.qty)}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{d.vehicle_ref ?? "-"}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{d.remarks ?? "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitDispatch(false);
-          }}
-          className="grid grid-cols-2 gap-3"
-        >
-          <div>
-            <label className="block text-sm mb-1">Dispatch Date</label>
-            <input
-              type="date"
-              required
-              value={form.dispatch_date}
-              onChange={(e) => setForm({ ...form, dispatch_date: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Qty</label>
-            <input
-              type="number"
-              required
-              value={form.qty}
-              onChange={(e) => setForm({ ...form, qty: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Vehicle / Ref</label>
-            <input
-              value={form.vehicle_ref}
-              onChange={(e) => setForm({ ...form, vehicle_ref: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <div>
-            <label className="block text-sm mb-1">Remarks</label>
-            <input
-              value={form.remarks}
-              onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-          <button disabled={saving} className="col-span-2 bg-slate-900 text-white rounded py-2 text-sm disabled:opacity-50">
-            {saving ? "Saving..." : "Add Dispatch"}
-          </button>
-        </form>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <h2 className="px-4 py-3 font-medium border-b">Dispatch History</h2>
-        <table className="w-full text-sm min-w-[500px]">
-          <thead>
-            <tr className="text-left border-b text-slate-500">
-              <th className="px-4 py-2">Date</th>
-              <th className="px-4 py-2">Qty</th>
-              <th className="px-4 py-2">Vehicle/Ref</th>
-              <th className="px-4 py-2">Remarks</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(dispatches ?? []).map((d) => (
-              <tr key={d.id} className="border-b last:border-b-0">
-                <td className="px-4 py-2">{d.dispatch_date}</td>
-                <td className="px-4 py-2">{d.qty}</td>
-                <td className="px-4 py-2">{d.vehicle_ref ?? "-"}</td>
-                <td className="px-4 py-2">{d.remarks ?? "-"}</td>
-              </tr>
-            ))}
-            {(dispatches ?? []).length === 0 && (
-              <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={4}>No dispatches recorded yet.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="bg-white rounded-lg shadow p-4">
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className="text-xl font-semibold">{value}</div>
+      </Card>
     </div>
   );
 }

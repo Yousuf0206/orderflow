@@ -1,5 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, Pause, ShieldAlert } from "lucide-react";
 
+import { Card } from "../../components/ui/Card";
+import PageHeader from "../../components/ui/PageHeader";
+import { KpiSkeletonRow, TableSkeleton } from "../../components/ui/Skeleton";
+import StatCard from "../../components/ui/StatCard";
 import { api } from "../../services/apiClient";
 
 interface OrgRow {
@@ -19,8 +24,14 @@ interface Metrics {
 
 export default function SuperAdmin() {
   const queryClient = useQueryClient();
-  const { data: orgs } = useQuery({ queryKey: ["admin-orgs"], queryFn: () => api.get<OrgRow[]>("/admin/organizations") });
-  const { data: metrics } = useQuery({ queryKey: ["admin-metrics"], queryFn: () => api.get<Metrics>("/admin/metrics") });
+  const { data: orgs, isLoading: orgsLoading } = useQuery({
+    queryKey: ["admin-orgs"],
+    queryFn: () => api.get<OrgRow[]>("/admin/organizations"),
+  });
+  const { data: metrics, isLoading: metricsLoading } = useQuery({
+    queryKey: ["admin-metrics"],
+    queryFn: () => api.get<Metrics>("/admin/metrics"),
+  });
 
   async function toggleSuspend(org: OrgRow) {
     const action = org.is_suspended ? "reactivate" : "suspend";
@@ -29,54 +40,66 @@ export default function SuperAdmin() {
   }
 
   return (
-    <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Super Admin</h1>
-      {metrics && (
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-slate-500">Organizations</div>
-            <div className="text-xl font-semibold">{metrics.organization_count}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-slate-500">Suspended</div>
-            <div className="text-xl font-semibold">{metrics.suspended_count}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-sm text-slate-500">Total Active POs</div>
-            <div className="text-xl font-semibold">{metrics.total_active_pos}</div>
-          </div>
+    <div className="space-y-6">
+      <PageHeader title="Super Admin" description="Manage organizations across the platform." />
+
+      {metricsLoading || !metrics ? (
+        <KpiSkeletonRow count={3} />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Organizations" value={String(metrics.organization_count)} icon={Building2} />
+          <StatCard label="Suspended" value={String(metrics.suspended_count)} icon={Pause} tone="danger" />
+          <StatCard label="Total Active POs" value={String(metrics.total_active_pos)} icon={ShieldAlert} tone="warning" />
         </div>
       )}
-      <div className="bg-white rounded-lg shadow overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead>
-            <tr className="text-left border-b text-slate-500">
-              <th className="px-4 py-2">Organization</th>
-              <th className="px-4 py-2">Plan</th>
-              <th className="px-4 py-2">Users</th>
-              <th className="px-4 py-2">Active POs</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {(orgs ?? []).map((o) => (
-              <tr key={o.id} className="border-b last:border-b-0">
-                <td className="px-4 py-2">{o.name}</td>
-                <td className="px-4 py-2 capitalize">{o.plan_tier}</td>
-                <td className="px-4 py-2">{o.user_count}</td>
-                <td className="px-4 py-2">{o.active_po_count}</td>
-                <td className="px-4 py-2">{o.is_suspended ? "Suspended" : "Active"}</td>
-                <td className="px-4 py-2">
-                  <button onClick={() => toggleSuspend(o)} className="text-xs underline">
-                    {o.is_suspended ? "Reactivate" : "Suspend"}
-                  </button>
-                </td>
+
+      <Card className="overflow-x-auto">
+        {orgsLoading ? (
+          <TableSkeleton rows={5} cols={5} />
+        ) : (
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
+                <th className="px-5 py-3">Organization</th>
+                <th className="px-5 py-3">Plan</th>
+                <th className="px-5 py-3">Users</th>
+                <th className="px-5 py-3">Active POs</th>
+                <th className="px-5 py-3">Status</th>
+                <th className="px-5 py-3"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {(orgs ?? []).map((o) => (
+                <tr key={o.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
+                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{o.name}</td>
+                  <td className="px-5 py-3 capitalize text-slate-600 dark:text-slate-300">{o.plan_tier}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{o.user_count}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{o.active_po_count}</td>
+                  <td className="px-5 py-3">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset ${
+                        o.is_suspended
+                          ? "bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/20"
+                          : "bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/20"
+                      }`}
+                    >
+                      {o.is_suspended ? "Suspended" : "Active"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={() => toggleSuspend(o)}
+                      className="rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-slate-300"
+                    >
+                      {o.is_suspended ? "Reactivate" : "Suspend"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </Card>
     </div>
   );
 }
