@@ -1,9 +1,13 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
+from jose import jwt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from src.core.config import settings
 from src.core.db import Base, get_db
 from src.main import app
 
@@ -35,6 +39,34 @@ def signup(client, email="owner@test.com", org_name="Test Org") -> dict:
         json={"email": email, "password": "password123", "organization_name": org_name},
     )
     assert resp.status_code == 201, resp.text
+    return resp.json()
+
+
+def invite_token(membership_id: str) -> str:
+    """Mints the invite token the server would have emailed.
+
+    The invite link only ever leaves the app by email, and SMTP is unset in
+    tests, so there is no other way to drive the real acceptance path. Signed
+    with the same secret and claims as src/api/org.py::invite_member.
+    """
+    return jwt.encode(
+        {
+            "sub": membership_id,
+            "type": "invite",
+            "exp": datetime.now(UTC) + timedelta(days=7),
+        },
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+
+
+def accept_invite(client, membership_id: str, password: str = "password123") -> dict:
+    """Completes an invitation and returns the new member's token pair."""
+    resp = client.post(
+        "/auth/invite/accept",
+        json={"token": invite_token(membership_id), "password": password},
+    )
+    assert resp.status_code == 200, resp.text
     return resp.json()
 
 

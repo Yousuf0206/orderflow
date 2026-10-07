@@ -31,26 +31,37 @@ def apply_plan(db: Session, sub: Subscription, plan_tier: str) -> None:
     sub.is_read_only_locked = False
 
 
+def count_users(db: Session, organization_id: str) -> int:
+    """Seats in use. Shared by enforcement and by the usage figures shown on
+    Billing -- if the two counted differently, the UI could say "2 of 3" to
+    someone the server is already refusing.
+    """
+    return db.query(Membership).filter(Membership.organization_id == organization_id).count()
+
+
+def count_active_pos(db: Session, organization_id: str) -> int:
+    """Active (non-soft-deleted) purchase orders. Same single-definition reason
+    as count_users above.
+    """
+    return (
+        db.query(PurchaseOrder)
+        .filter(PurchaseOrder.organization_id == organization_id, PurchaseOrder.deleted_at.is_(None))
+        .count()
+    )
+
+
 def enforce_usage_limits(db: Session, organization_id: str, *, adding_user: bool = False, adding_po: bool = False) -> None:
     sub = get_or_create_subscription(db, organization_id)
-    if adding_user:
-        current_users = db.query(Membership).filter(Membership.organization_id == organization_id).count()
-        if current_users >= sub.max_users:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                f"User limit ({sub.max_users}) reached for the {sub.plan_tier} plan. Upgrade to add more users.",
-            )
-    if adding_po:
-        current_pos = (
-            db.query(PurchaseOrder)
-            .filter(PurchaseOrder.organization_id == organization_id, PurchaseOrder.deleted_at.is_(None))
-            .count()
+    if adding_user and count_users(db, organization_id) >= sub.max_users:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"User limit ({sub.max_users}) reached for the {sub.plan_tier} plan. Upgrade to add more users.",
         )
-        if current_pos >= sub.max_active_pos:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                f"Active PO limit ({sub.max_active_pos}) reached for the {sub.plan_tier} plan. Upgrade to add more.",
-            )
+    if adding_po and count_active_pos(db, organization_id) >= sub.max_active_pos:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"Active PO limit ({sub.max_active_pos}) reached for the {sub.plan_tier} plan. Upgrade to add more.",
+        )
 
 
 def check_trial_expiry(db: Session, sub: Subscription) -> None:
