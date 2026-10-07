@@ -5,6 +5,7 @@ import { Link, useParams } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import EmptyState from "../../components/ui/EmptyState";
 import PageHeader from "../../components/ui/PageHeader";
+import QueryState from "../../components/ui/QueryState";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { StatusBadge } from "../../components/ui/Badge";
 import { api } from "../../services/apiClient";
@@ -27,21 +28,33 @@ const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 })
 
 export default function PartyDetail() {
   const { id } = useParams();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["party", id],
     queryFn: () => api.get<PartyDetailData>(`/parties/${id}`),
     enabled: !!id,
   });
 
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Loading party…" />
-        <Skeleton className="h-64" />
-      </div>
-    );
-  }
+  return (
+    <QueryState
+      isLoading={isLoading}
+      isError={isError}
+      error={error}
+      data={data}
+      refetch={refetch}
+      errorFallback="We couldn't load this party. It may have been removed, or the connection dropped."
+      loading={
+        <div className="space-y-6">
+          <PageHeader title="Party" />
+          <Skeleton className="h-64" />
+        </div>
+      }
+    >
+      {(party) => <PartyDetailView data={party} />}
+    </QueryState>
+  );
+}
 
+function PartyDetailView({ data }: { data: PartyDetailData }) {
   return (
     <div className="space-y-6">
       <PageHeader

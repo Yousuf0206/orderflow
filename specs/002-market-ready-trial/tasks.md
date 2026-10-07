@@ -102,27 +102,27 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] Write the core-loop end-to-end test in `frontend/tests/e2e/core-loop.spec.ts` (Playwright, already configured via `npm run test:e2e`): signup with organization name → create party → create PO ordered 100 → dispatch 30 → assert Dispatched 30 / Remaining 70 without reload → assert dashboard totals agree. This is the SC-002 vehicle and the Principle XIII gate
-- [ ] T016 [P] [US1] Write failure-state tests in `frontend/tests/` for party detail and purchase order detail: with the query failing, the screen renders an error and a retry, and the strings "Loading party…" and "Loading purchase order…" are absent. These must FAIL before T017–T018
-- [ ] T017 [P] [US1] Write a stalled-request test asserting a core-loop screen reaches a terminal error state within the SC-005 budget when the request never settles — the case a screen can still fail after `isError` is handled
+- [X] T015 [P] [US1] Write the core-loop end-to-end test in `frontend/tests/e2e/core-loop.spec.ts` (Playwright, already configured via `npm run test:e2e`): signup with organization name → create party → create PO ordered 100 → dispatch 30 → assert Dispatched 30 / Remaining 70 without reload → assert dashboard totals agree. This is the SC-002 vehicle and the Principle XIII gate
+- [X] T016 [P] [US1] Write failure-state tests in `frontend/tests/` for party detail and purchase order detail: with the query failing, the screen renders an error and a retry, and the strings "Loading party…" and "Loading purchase order…" are absent. These must FAIL before T017–T018
+- [X] T017 [P] [US1] Write a stalled-request test asserting a core-loop screen reaches a terminal error state within the SC-005 budget when the request never settles — the case a screen can still fail after `isError` is handled
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Replace `if (isLoading || !data)` at `frontend/src/pages/parties/PartyDetail.tsx:35` with `QueryState`, removing the "Loading party…" header named in the constitution
-- [ ] T019 [US1] Replace `if (isLoading || !data)` at `frontend/src/pages/purchase-orders/PurchaseOrderDetail.tsx:82` with `QueryState`, removing "Loading purchase order…"
-- [ ] T020 [P] [US1] Adopt `QueryState` in `frontend/src/pages/dashboard/Dashboard.tsx`, with an empty state naming the next action when the organization has no POs (FR-025)
-- [ ] T021 [P] [US1] Adopt `QueryState` in `frontend/src/pages/parties/PartiesList.tsx`, with a "Create first party" empty state (FR-030)
-- [ ] T022 [P] [US1] Adopt `QueryState` in `frontend/src/pages/purchase-orders/PurchaseOrdersList.tsx`, with an empty state naming the next action
-- [ ] T023 [US1] Adopt `QueryState` in `frontend/src/pages/purchase-orders/PurchaseOrderForm.tsx` so a failed party-dropdown fetch surfaces an error rather than an empty dropdown that reads as "no parties exist" (FR-019)
-- [ ] T024 [US1] Adopt `QueryState` in `frontend/src/components/AppShell.tsx`: a failed shell bootstrap currently degrades every screen inside it (FR-016)
-- [ ] T025 [US1] Verify the shell populates organization name, role, and email from the server's account representation (FR-016)
-- [ ] T026 [US1] Verify signup submits every field the server requires including `organization_name`, and that a valid submission cannot fail for a reason the user cannot see or correct (FR-014) — `backend/src/api/auth.py:41` is the server side
-- [ ] T027 [US1] Verify successful signup establishes the session and lands on onboarding or the dashboard (FR-015)
-- [ ] T028 [US1] Verify logout clears the session completely — no authenticated route reachable, and no `orderflow_tokens` left in `localStorage` (FR-017)
-- [ ] T029 [P] [US1] Verify creating a party opens its detail screen showing the saved party (FR-018), and creating a PO with the party selector works and shows Ordered / Dispatched / Remaining (FR-019, FR-020)
-- [ ] T030 [US1] Verify a recorded dispatch updates displayed quantities and the dispatch history without a reload (FR-021)
-- [ ] T031 [US1] Verify every remaining balance in the UI is derived from dispatch records, with no screen showing a figure obtained another way (FR-022, Principle II). Confirm by inspection, not by changing the domain engine — the constitution forbids rewriting it without a proven bug
-- [ ] T032 [US1] Verify the over-dispatch path still warns and requires explicit confirmation (FR-023), including the boundary case where the dispatch exactly equals remaining, which must NOT warn and must drive remaining to zero
+- [X] T018 [US1] Replace `if (isLoading || !data)` at `frontend/src/pages/parties/PartyDetail.tsx:35` with `QueryState`, removing the "Loading party…" header named in the constitution
+- [X] T019 [US1] Replace `if (isLoading || !data)` at `frontend/src/pages/purchase-orders/PurchaseOrderDetail.tsx:82` with `QueryState`, removing "Loading purchase order…"
+- [X] T020 [P] [US1] Adopt `QueryState` in `frontend/src/pages/dashboard/Dashboard.tsx`, with an empty state naming the next action when the organization has no POs (FR-025)
+- [X] T021 [P] [US1] Adopt `QueryState` in `frontend/src/pages/parties/PartiesList.tsx`, with a "Create first party" empty state (FR-030)
+- [X] T022 [P] [US1] Adopt `QueryState` in `frontend/src/pages/purchase-orders/PurchaseOrdersList.tsx`, with an empty state naming the next action
+- [X] T023 [US1] Adopt `QueryState` in `frontend/src/pages/purchase-orders/PurchaseOrderForm.tsx` so a failed party-dropdown fetch surfaces an error rather than an empty dropdown that reads as "no parties exist" (FR-019)
+- [X] T024 [US1] Adopt `QueryState` in `frontend/src/components/AppShell.tsx`: a failed shell bootstrap currently degrades every screen inside it (FR-016)
+- [X] T025 [US1] Verify the shell populates organization name, role, and email from the server's account representation (FR-016)
+- [X] T026 [US1] Verify signup submits every field the server requires including `organization_name`, and that a valid submission cannot fail for a reason the user cannot see or correct (FR-014) — `backend/src/api/auth.py:41` is the server side
+- [X] T027 [US1] Verify successful signup establishes the session and lands on onboarding or the dashboard (FR-015)
+- [X] T028 [US1] Verify logout clears the session completely — no authenticated route reachable, and no `orderflow_tokens` left in `localStorage` (FR-017)
+- [X] T029 [P] [US1] Verify creating a party opens its detail screen showing the saved party (FR-018), and creating a PO with the party selector works and shows Ordered / Dispatched / Remaining (FR-019, FR-020)
+- [X] T030 [US1] Verify a recorded dispatch updates displayed quantities and the dispatch history without a reload (FR-021)
+- [X] T031 [US1] Verify every remaining balance in the UI is derived from dispatch records, with no screen showing a figure obtained another way (FR-022, Principle II). Confirm by inspection, not by changing the domain engine — the constitution forbids rewriting it without a proven bug
+- [X] T032 [US1] Verify the over-dispatch path still warns and requires explicit confirmation (FR-023), including the boundary case where the dispatch exactly equals remaining, which must NOT warn and must drive remaining to zero
 
 **Checkpoint**: The product is demonstrable to a beta user. US1 alone is a viable MVP.
 

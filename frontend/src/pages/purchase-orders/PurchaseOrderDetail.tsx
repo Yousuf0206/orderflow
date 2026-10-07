@@ -8,9 +8,10 @@ import { Card, CardHeader } from "../../components/ui/Card";
 import EmptyState from "../../components/ui/EmptyState";
 import { FormField, Input } from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
+import QueryState from "../../components/ui/QueryState";
 import { KpiSkeletonRow, Skeleton, TableSkeleton } from "../../components/ui/Skeleton";
 import StatCard from "../../components/ui/StatCard";
-import { api } from "../../services/apiClient";
+import { api, describeApiError } from "../../services/apiClient";
 
 interface PurchaseOrder {
   id: string;
@@ -39,14 +40,27 @@ export default function PurchaseOrderDetail() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({ dispatch_date: new Date().toISOString().slice(0, 10), qty: "", vehicle_ref: "", remarks: "" });
   const [warning, setWarning] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const { data: po, isLoading: poLoading } = useQuery({
+  const {
+    data: po,
+    isLoading: poLoading,
+    isError: poIsError,
+    error: poError,
+    refetch: refetchPo,
+  } = useQuery({
     queryKey: ["purchase-order", id],
     queryFn: () => api.get<PurchaseOrder>(`/purchase-orders/${id}`),
     enabled: !!id,
   });
-  const { data: dispatches, isLoading: dispatchesLoading } = useQuery({
+  const {
+    data: dispatches,
+    isLoading: dispatchesLoading,
+    isError: dispatchesIsError,
+    error: dispatchesError,
+    refetch: refetchDispatches,
+  } = useQuery({
     queryKey: ["dispatches", id],
     queryFn: () => api.get<Dispatch[]>(`/purchase-orders/${id}/dispatches`),
     enabled: !!id,
@@ -58,6 +72,7 @@ export default function PurchaseOrderDetail() {
 
   async function submitDispatch(confirm: boolean) {
     setSaving(true);
+    setSubmitError(null);
     try {
       const result = await api.post<{ dispatch: Dispatch | null; warning: string | null }>(
         `/purchase-orders/${id}/dispatches`,
@@ -71,22 +86,32 @@ export default function PurchaseOrderDetail() {
       setForm({ dispatch_date: new Date().toISOString().slice(0, 10), qty: "", vehicle_ref: "", remarks: "" });
       queryClient.invalidateQueries({ queryKey: ["purchase-order", id] });
       queryClient.invalidateQueries({ queryKey: ["dispatches", id] });
+    } catch (err) {
+      // Without this the dispatch just vanished: the spinner stopped, the form
+      // kept its values, and nothing said whether the dispatch was recorded.
+      setSubmitError(describeApiError(err, "We couldn't record that dispatch. Please try again."));
     } finally {
       setSaving(false);
     }
   }
 
-  if (poLoading || !po) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Loading purchase order…" />
-        <KpiSkeletonRow count={3} />
-        <Skeleton className="h-64" />
-      </div>
-    );
-  }
-
   return (
+    <QueryState
+      isLoading={poLoading}
+      isError={poIsError}
+      error={poError}
+      data={po}
+      refetch={refetchPo}
+      errorFallback="We couldn't load this purchase order. It may have been removed, or the connection dropped."
+      loading={
+        <div className="space-y-6">
+          <PageHeader title="Purchase order" />
+          <KpiSkeletonRow count={3} />
+          <Skeleton className="h-64" />
+        </div>
+      }
+    >
+      {(po) => (
     <div className="space-y-6">
       <PageHeader title={po.po_number} description={`${po.material} · ${po.unit} · Due ${po.due_date}`} />
 
@@ -101,6 +126,14 @@ export default function PurchaseOrderDetail() {
           <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Record a Dispatch</h2>
         </CardHeader>
         <div className="space-y-4 p-5">
+          {submitError && (
+            <p
+              role="alert"
+              className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400"
+            >
+              {submitError}
+            </p>
+          )}
           {warning && (
             <div
               role="alert"
@@ -160,11 +193,27 @@ export default function PurchaseOrderDetail() {
         <CardHeader>
           <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Dispatch History</h2>
         </CardHeader>
-        {dispatchesLoading ? (
-          <TableSkeleton rows={4} cols={4} />
-        ) : (dispatches ?? []).length === 0 ? (
-          <EmptyState icon={PackageCheck} title="No dispatches recorded yet" description="Dispatches you record above will appear here." />
-        ) : (
+        {/* Its own QueryState: when this fetch failed, `dispatches ?? []` used to
+            render "No dispatches recorded yet" -- telling a trader the order has
+            no dispatches when in fact we never found out. */}
+        <QueryState
+          isLoading={dispatchesLoading}
+          isError={dispatchesIsError}
+          error={dispatchesError}
+          data={dispatches}
+          refetch={refetchDispatches}
+          errorFallback="We couldn't load the dispatch history for this order."
+          loading={<TableSkeleton rows={4} cols={4} />}
+          isEmpty={(rows) => rows.length === 0}
+          empty={
+            <EmptyState
+              icon={PackageCheck}
+              title="No dispatches recorded yet"
+              description="Dispatches you record above will appear here."
+            />
+          }
+        >
+          {(rows) => (
           <table className="w-full min-w-[500px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
@@ -175,7 +224,7 @@ export default function PurchaseOrderDetail() {
               </tr>
             </thead>
             <tbody>
-              {(dispatches ?? []).map((d) => (
+              {rows.map((d) => (
                 <tr key={d.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{d.dispatch_date}</td>
                   <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{numberFmt.format(d.qty)}</td>
@@ -185,8 +234,11 @@ export default function PurchaseOrderDetail() {
               ))}
             </tbody>
           </table>
-        )}
+          )}
+        </QueryState>
       </Card>
     </div>
+      )}
+    </QueryState>
   );
 }

@@ -13,8 +13,10 @@ import {
   YAxis,
 } from "recharts";
 
+import Button from "../../components/ui/Button";
 import { Card, CardHeader } from "../../components/ui/Card";
 import EmptyState from "../../components/ui/EmptyState";
+import QueryState from "../../components/ui/QueryState";
 import { KpiSkeletonRow, Skeleton } from "../../components/ui/Skeleton";
 import StatCard from "../../components/ui/StatCard";
 import PageHeader from "../../components/ui/PageHeader";
@@ -34,24 +36,36 @@ interface DashboardData {
 const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
 
 export default function Dashboard() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => api.get<DashboardData>("/dashboard"),
   });
 
-  if (isLoading || !data) {
-    return (
-      <div className="space-y-6">
-        <PageHeader title="Dashboard" description="Live overview of remaining balances and delivery status." />
-        <KpiSkeletonRow />
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-          <Skeleton className="h-72 lg:col-span-2" />
-          <Skeleton className="h-72 lg:col-span-3" />
+  return (
+    <QueryState
+      isLoading={isLoading}
+      isError={isError}
+      error={error}
+      data={data}
+      refetch={refetch}
+      errorFallback="We couldn't load your dashboard. Your data is safe — this is a display problem."
+      loading={
+        <div className="space-y-6">
+          <PageHeader title="Dashboard" description="Live overview of remaining balances and delivery status." />
+          <KpiSkeletonRow />
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+            <Skeleton className="h-72 lg:col-span-2" />
+            <Skeleton className="h-72 lg:col-span-3" />
+          </div>
         </div>
-      </div>
-    );
-  }
+      }
+    >
+      {(data) => <DashboardView data={data} />}
+    </QueryState>
+  );
+}
 
+function DashboardView({ data }: { data: DashboardData }) {
   const statusData = [
     { key: "on_track", value: data.on_track_count },
     { key: "due_soon", value: data.due_soon_count },
@@ -64,6 +78,29 @@ export default function Dashboard() {
     fullName: p.party_name,
     value: p.remaining_balance,
   }));
+
+  // A brand-new organization has nothing to chart. Rows of zeroes and four
+  // separate "nothing here" cards don't tell a first-time user what to do, so
+  // say it once and point at the first step.
+  if (data.total_po_count === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Dashboard" description="Live overview of remaining balances and delivery status." />
+        <Card>
+          <EmptyState
+            icon={Inbox}
+            title="No purchase orders yet"
+            description="Add a party you trade with, then raise a purchase order against it. Remaining balances appear here as you record dispatches."
+            action={
+              <Link to="/parties/new">
+                <Button>Create your first party</Button>
+              </Link>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
