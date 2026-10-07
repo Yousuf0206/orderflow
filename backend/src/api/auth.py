@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 from src.core.config import settings
 from src.core.db import get_db
 from src.core.security import (
+    CurrentUser,
     create_token,
     decode_token,
+    get_current_user,
     hash_password,
     verify_password,
 )
@@ -69,6 +71,16 @@ def signup(payload: SignupRequest, db: Session = Depends(get_db)) -> TokenPair:
         access_token=create_token(user.id, "access"),
         refresh_token=create_token(user.id, "refresh"),
     )
+
+
+@router.get("/me")
+def me(current: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    org = db.get(Organization, current.organization_id) if current.organization_id else None
+    return {
+        "user": {"id": current.user.id, "email": current.user.email},
+        "organization": {"id": org.id, "name": org.name} if org else None,
+        "role": current.role,
+    }
 
 
 @router.post("/login", response_model=TokenPair)

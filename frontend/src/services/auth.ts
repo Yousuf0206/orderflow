@@ -1,7 +1,17 @@
 import { api, getTokens, setTokens, type TokenPair } from "./apiClient";
 
+export interface CurrentUserInfo {
+  user: { id: string; email: string };
+  organization: { id: string; name: string } | null;
+  role: string | null;
+}
+
 export function isAuthenticated(): boolean {
   return getTokens() !== null;
+}
+
+export function getMe(): Promise<CurrentUserInfo> {
+  return api.get<CurrentUserInfo>("/auth/me");
 }
 
 export async function login(email: string, password: string): Promise<void> {

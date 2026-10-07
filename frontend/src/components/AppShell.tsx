@@ -1,5 +1,6 @@
+import { useQuery } from "@tanstack/react-query";
 import {
-  ClipboardList,
+  Building2,
   FileBarChart,
   LayoutDashboard,
   LogOut,
@@ -15,7 +16,7 @@ import {
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
-import { logout } from "../services/auth";
+import { getMe, logout } from "../services/auth";
 import Notifications from "./Notifications";
 import ThemeToggle from "./ui/ThemeToggle";
 
@@ -53,7 +54,7 @@ function NavItem({ to, label, icon: Icon, onClick }: { to: string; label: string
   );
 }
 
-function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
+function SidebarContent({ userEmail, onNavigate }: { userEmail?: string; onNavigate?: () => void }) {
   return (
     <>
       <div className="flex items-center gap-2 px-3 py-2">
@@ -74,6 +75,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         ))}
       </nav>
       <div className="border-t border-slate-200 p-2 dark:border-slate-800">
+        {userEmail && (
+          <p className="truncate px-3 pb-1 text-xs text-slate-400 dark:text-slate-500" title={userEmail}>
+            {userEmail}
+          </p>
+        )}
         <button
           onClick={logout}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
@@ -88,12 +94,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export default function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: getMe, staleTime: 5 * 60 * 1000 });
 
   return (
     <div className="flex min-h-dvh bg-slate-50 dark:bg-slate-950">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white py-4 dark:border-slate-800 dark:bg-slate-900 md:flex">
-        <SidebarContent />
+        <SidebarContent userEmail={me?.user.email} />
       </aside>
 
       {/* Mobile drawer */}
@@ -111,7 +118,7 @@ export default function AppShell() {
                 <X size={18} />
               </button>
             </div>
-            <SidebarContent onNavigate={() => setMobileNavOpen(false)} />
+            <SidebarContent userEmail={me?.user.email} onNavigate={() => setMobileNavOpen(false)} />
           </aside>
         </div>
       )}
@@ -126,8 +133,8 @@ export default function AppShell() {
             <Menu size={20} />
           </button>
           <div className="hidden items-center gap-2 text-sm text-slate-400 md:flex">
-            <ClipboardList size={16} />
-            <span>Trial workspace</span>
+            <Building2 size={16} />
+            <span>{me?.organization?.name ?? "Workspace"}</span>
           </div>
           <div className="ml-auto flex items-center gap-1">
             <ThemeToggle />
