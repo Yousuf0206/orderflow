@@ -13,6 +13,7 @@ import { Link } from "react-router-dom";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { usePageMeta } from "../../hooks/usePageMeta";
+import { usePublicPlans } from "../../hooks/useTrialInfo";
 
 const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   {
@@ -59,6 +60,9 @@ export default function Landing() {
     "Track purchase orders and partial dispatches, live",
     "OrderFlow keeps your remaining balances accurate in real time for trading companies and material dealers who deliver in parts, not all at once.",
   );
+  // Falls back to "Free trial" until this resolves, so the hero never states a
+  // length that might not be the one signup grants.
+  const trialDays = usePublicPlans().data?.trial_length_days;
 
   return (
     <div className="min-h-dvh bg-white">
@@ -104,7 +108,7 @@ export default function Landing() {
         </div>
         <p className="flex items-center justify-center gap-1.5 text-xs text-slate-400">
           <CheckCircle2 size={14} className="text-emerald-500" />
-          14-day free trial · No credit card required
+          {trialDays ? `${trialDays}-day free trial` : "Free trial"} · No credit card required
         </p>
       </section>
 
