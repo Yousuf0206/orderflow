@@ -50,6 +50,24 @@ export function describeApiError(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Extracts per-field validation messages from a 422 response, keyed by the
+ * last segment of each error's `loc` (e.g. ["body", "password"] -> "password").
+ * Returns {} for anything that isn't a 422 pydantic validation error.
+ */
+export function getValidationErrors(err: unknown): Record<string, string> {
+  if (!(err instanceof ApiError) || err.status !== 422) return {};
+  const detail = (err.body as { detail?: unknown } | null)?.detail;
+  if (!Array.isArray(detail)) return {};
+
+  const out: Record<string, string> = {};
+  for (const item of detail as { msg?: string; loc?: unknown[] }[]) {
+    const field = Array.isArray(item.loc) ? item.loc[item.loc.length - 1] : undefined;
+    if (typeof field === "string" && item.msg) out[field] = item.msg;
+  }
+  return out;
+}
+
 async function request<T>(path: string, options: RequestInit = {}, retry = true): Promise<T> {
   const tokens = getTokens();
   const headers = new Headers(options.headers);
