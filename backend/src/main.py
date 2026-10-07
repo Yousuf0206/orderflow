@@ -11,6 +11,7 @@ from src.api import (
     notifications,
     org,
     parties,
+    plans,
     purchase_orders,
     reports,
 )
@@ -37,6 +38,7 @@ app.include_router(dashboard.router)
 app.include_router(reports.router)
 app.include_router(notifications.router)
 app.include_router(billing.router)
+app.include_router(plans.router)
 app.include_router(audit_log.router)
 app.include_router(admin.router)
 

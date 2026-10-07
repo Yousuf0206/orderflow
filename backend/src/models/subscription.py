@@ -13,6 +13,15 @@ PLAN_LIMITS = {
     "pro": {"max_users": 1_000_000, "max_active_pos": 1_000_000},
 }
 
+# Display-only list price per paid tier (not wired to Stripe, which only
+# deals in opaque price IDs). Single source for the public /plans endpoint
+# and the marketing Pricing page, so the two can't drift independently.
+PLAN_PRICES = {
+    "starter": "$29/mo",
+    "business": "$79/mo",
+    "pro": "$199/mo",
+}
+
 
 class Subscription(Base, TimestampMixin):
     __tablename__ = "subscriptions"
