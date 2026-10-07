@@ -13,6 +13,7 @@ from src.core.db import get_db
 from src.core.security import CurrentUser, get_current_user
 from src.models.organization import Organization
 from src.models.subscription import Subscription
+from src.services.billing import check_trial_expiry, enforce_usage_limits, get_or_create_subscription
 
 
 class TenantContext:
@@ -48,6 +49,14 @@ class TenantContext:
                 "Organization is in read-only mode: trial expired. Upgrade to continue editing.",
             )
 
+    def assert_can_add_user(self) -> None:
+        """Blocks inviting past the plan's max_users (billing.PLAN_LIMITS)."""
+        enforce_usage_limits(self.db, self.organization_id, adding_user=True)
+
+    def assert_can_add_po(self) -> None:
+        """Blocks creating past the plan's max_active_pos (billing.PLAN_LIMITS)."""
+        enforce_usage_limits(self.db, self.organization_id, adding_po=True)
+
 
 def get_tenant_context(
     current: CurrentUser = Depends(get_current_user),
@@ -60,4 +69,15 @@ def get_tenant_context(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Organization not found")
     if org.is_suspended:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Organization access is suspended")
+
+    # Lazily re-evaluate trial expiry on every authenticated request rather
+    # than relying on an external scheduler -- there was previously no path
+    # that ever flipped is_read_only_locked to True, so trials never
+    # actually expired in practice.
+    sub = get_or_create_subscription(db, org.id)
+    was_locked = sub.is_read_only_locked
+    check_trial_expiry(db, sub)
+    if sub.is_read_only_locked != was_locked:
+        db.commit()
+
     return TenantContext(db=db, current=current, organization=org)

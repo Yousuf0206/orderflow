@@ -58,6 +58,7 @@ def invite_member(
     _owner: CurrentUser = Depends(require_role("owner")),
 ) -> MemberOut:
     validate_role(payload.role)
+    tenant.assert_can_add_user()
 
     user = tenant.db.query(User).filter(User.email == payload.email).first()
     if user is None:

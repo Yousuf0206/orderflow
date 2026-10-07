@@ -73,6 +73,7 @@ def create_purchase_order(
     current: CurrentUser = Depends(require_role("owner", "manager")),
 ) -> PurchaseOrderOut:
     tenant.assert_write_allowed()
+    tenant.assert_can_add_po()
     existing = (
         tenant.scoped(tenant.db.query(PurchaseOrder), PurchaseOrder)
         .filter(PurchaseOrder.po_number == payload.po_number, PurchaseOrder.deleted_at.is_(None))

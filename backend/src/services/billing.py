@@ -55,5 +55,13 @@ def enforce_usage_limits(db: Session, organization_id: str, *, adding_user: bool
 
 def check_trial_expiry(db: Session, sub: Subscription) -> None:
     """FR-021: switch to read-only lockout once trial ends without upgrade."""
-    if sub.plan_tier == "trial" and sub.trial_ends_at and sub.trial_ends_at < datetime.now(UTC):
+    if sub.plan_tier != "trial" or sub.trial_ends_at is None:
+        return
+    trial_ends_at = sub.trial_ends_at
+    if trial_ends_at.tzinfo is None:
+        # SQLite (used in tests) round-trips DateTime(timezone=True) columns
+        # as naive; Postgres (production) keeps them aware. Values are
+        # always written in UTC (see signup), so naive == UTC here.
+        trial_ends_at = trial_ends_at.replace(tzinfo=UTC)
+    if trial_ends_at < datetime.now(UTC):
         sub.is_read_only_locked = True
