@@ -80,6 +80,7 @@ def me(current: CurrentUser = Depends(get_current_user), db: Session = Depends(g
         "user": {"id": current.user.id, "email": current.user.email},
         "organization": {"id": org.id, "name": org.name} if org else None,
         "role": current.role,
+        "is_super_admin": current.user.is_super_admin,
     }
 
 

@@ -4,6 +4,7 @@ export interface CurrentUserInfo {
   user: { id: string; email: string };
   organization: { id: string; name: string } | null;
   role: string | null;
+  is_super_admin: boolean;
 }
 
 export function isAuthenticated(): boolean {

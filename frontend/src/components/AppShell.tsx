@@ -29,11 +29,10 @@ const NAV_ITEMS = [
 ];
 
 const SETTINGS_ITEMS = [
-  { to: "/settings/team", label: "Team", icon: Users },
-  { to: "/settings/company", label: "Company", icon: Settings },
-  { to: "/billing", label: "Billing", icon: Wallet },
-  { to: "/admin", label: "Super Admin", icon: ShieldCheck },
-];
+  { to: "/settings/team", label: "Team", icon: Users, visible: (role: string | null) => role === "owner" || role === "manager" },
+  { to: "/settings/company", label: "Company", icon: Settings, visible: () => true },
+  { to: "/billing", label: "Billing", icon: Wallet, visible: (role: string | null) => role === "owner" },
+] as const;
 
 function NavItem({ to, label, icon: Icon, onClick }: { to: string; label: string; icon: typeof LayoutDashboard; onClick?: () => void }) {
   return (
@@ -54,7 +53,17 @@ function NavItem({ to, label, icon: Icon, onClick }: { to: string; label: string
   );
 }
 
-function SidebarContent({ userEmail, onNavigate }: { userEmail?: string; onNavigate?: () => void }) {
+function SidebarContent({
+  userEmail,
+  role,
+  isSuperAdmin,
+  onNavigate,
+}: {
+  userEmail?: string;
+  role?: string | null;
+  isSuperAdmin?: boolean;
+  onNavigate?: () => void;
+}) {
   return (
     <>
       <div className="flex items-center gap-2 px-3 py-2">
@@ -70,9 +79,10 @@ function SidebarContent({ userEmail, onNavigate }: { userEmail?: string; onNavig
         <p className="mt-5 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           Organization
         </p>
-        {SETTINGS_ITEMS.map((item) => (
+        {SETTINGS_ITEMS.filter((item) => item.visible(role ?? null)).map(({ visible: _visible, ...item }) => (
           <NavItem key={item.to} {...item} onClick={onNavigate} />
         ))}
+        {isSuperAdmin && <NavItem to="/admin" label="Super Admin" icon={ShieldCheck} onClick={onNavigate} />}
       </nav>
       <div className="border-t border-slate-200 p-2 dark:border-slate-800">
         {userEmail && (
@@ -100,7 +110,7 @@ export default function AppShell() {
     <div className="flex min-h-dvh bg-slate-50 dark:bg-slate-950">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white py-4 dark:border-slate-800 dark:bg-slate-900 md:flex">
-        <SidebarContent userEmail={me?.user.email} />
+        <SidebarContent userEmail={me?.user.email} role={me?.role} isSuperAdmin={me?.is_super_admin} />
       </aside>
 
       {/* Mobile drawer */}
@@ -118,7 +128,12 @@ export default function AppShell() {
                 <X size={18} />
               </button>
             </div>
-            <SidebarContent userEmail={me?.user.email} onNavigate={() => setMobileNavOpen(false)} />
+            <SidebarContent
+              userEmail={me?.user.email}
+              role={me?.role}
+              isSuperAdmin={me?.is_super_admin}
+              onNavigate={() => setMobileNavOpen(false)}
+            />
           </aside>
         </div>
       )}
