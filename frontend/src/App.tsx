@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 
 import AppShell from "./components/AppShell";
+import RedirectIfAuthed from "./components/RedirectIfAuthed";
 import RequireAuth from "./components/RequireAuth";
 import AcceptInvite from "./pages/auth/AcceptInvite";
 import Login from "./pages/auth/Login";
@@ -28,12 +29,33 @@ import TeamMembers from "./pages/settings/TeamMembers";
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route
+        path="/"
+        element={
+          <RedirectIfAuthed>
+            <Landing />
+          </RedirectIfAuthed>
+        }
+      />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
+      <Route
+        path="/login"
+        element={
+          <RedirectIfAuthed>
+            <Login />
+          </RedirectIfAuthed>
+        }
+      />
+      <Route
+        path="/signup"
+        element={
+          <RedirectIfAuthed>
+            <Signup />
+          </RedirectIfAuthed>
+        }
+      />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/accept-invite" element={<AcceptInvite />} />
