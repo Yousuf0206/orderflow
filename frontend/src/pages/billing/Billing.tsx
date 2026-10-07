@@ -3,11 +3,12 @@ import { useState } from "react";
 
 import { Link } from "react-router-dom";
 
+import AccessDenied from "../../components/ui/AccessDenied";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import PageHeader from "../../components/ui/PageHeader";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { api } from "../../services/apiClient";
+import { api, ApiError } from "../../services/apiClient";
 
 interface BillingInfo {
   plan_tier: string;
@@ -20,7 +21,11 @@ interface BillingInfo {
 const PLANS = ["starter", "business", "pro"];
 
 export default function Billing() {
-  const { data, isLoading } = useQuery({ queryKey: ["billing"], queryFn: () => api.get<BillingInfo>("/billing") });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["billing"],
+    queryFn: () => api.get<BillingInfo>("/billing"),
+    retry: (failureCount, err) => !(err instanceof ApiError && err.status === 403) && failureCount < 3,
+  });
   const [notice, setNotice] = useState<string | null>(null);
 
   async function upgrade(plan: string) {
@@ -41,6 +46,15 @@ export default function Billing() {
     } catch {
       setNotice("No billing account on file yet — upgrade to a paid plan first.");
     }
+  }
+
+  if (error instanceof ApiError && error.status === 403) {
+    return (
+      <div className="max-w-2xl space-y-4">
+        <PageHeader title="Billing" />
+        <AccessDenied description="Only organization owners can view billing." />
+      </div>
+    );
   }
 
   if (isLoading || !data) {
