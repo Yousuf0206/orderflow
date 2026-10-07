@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
+import { usePageMeta } from "../../hooks/usePageMeta";
 import { ApiError, describeApiError } from "../../services/apiClient";
 import { signup } from "../../services/auth";
 
 export default function Signup() {
+  usePageMeta("Start your free trial", "Create your OrderFlow account. No credit card required.");
   const navigate = useNavigate();
   const [organizationName, setOrganizationName] = useState("");
   const [email, setEmail] = useState("");

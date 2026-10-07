@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
+import { usePageMeta } from "../../hooks/usePageMeta";
 import { ApiError, describeApiError } from "../../services/apiClient";
 import { login } from "../../services/auth";
 import { getSafeNextPath } from "../../utils/safeNext";
 
 export default function Login() {
+  usePageMeta("Log in");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");

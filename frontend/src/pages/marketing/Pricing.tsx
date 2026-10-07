@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { Skeleton } from "../../components/ui/Skeleton";
+import { usePageMeta } from "../../hooks/usePageMeta";
 import { api } from "../../services/apiClient";
 import { isAuthenticated } from "../../services/auth";
 
@@ -21,6 +22,10 @@ function formatLimit(n: number): string {
 }
 
 export default function Pricing() {
+  usePageMeta(
+    "Pricing",
+    "Simple, usage-based pricing for OrderFlow. Every plan starts with a free 14-day trial, no credit card required.",
+  );
   const loggedIn = isAuthenticated();
   const ctaTo = loggedIn ? "/billing" : "/signup";
   const ctaLabel = loggedIn ? "Go to billing" : "Start trial";

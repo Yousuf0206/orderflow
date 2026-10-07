@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { usePageMeta } from "../../hooks/usePageMeta";
 
 const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   {
@@ -54,6 +55,11 @@ const STEPS = [
 const INDUSTRIES = ["Steel & Metals", "Cement & Building Materials", "Chemicals", "Textiles", "Agri Commodities"];
 
 export default function Landing() {
+  usePageMeta(
+    "Track purchase orders and partial dispatches, live",
+    "OrderFlow keeps your remaining balances accurate in real time for trading companies and material dealers who deliver in parts, not all at once.",
+  );
+
   return (
     <div className="min-h-dvh bg-white">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 p-4">
