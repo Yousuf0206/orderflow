@@ -166,19 +166,19 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 
 ### Tests for User Story 3
 
-- [ ] T045 [P] [US3] Integration test in `backend/tests/integration/`: invite past `max_users` returns 403, the message names the limit and its number, contains no "upgrade", and the member is **not** created (FR-012)
-- [ ] T046 [P] [US3] Integration test: create past `max_active_pos` returns 403 with the same properties, and the order is not created
-- [ ] T047 [P] [US3] Test that `current_users` / `current_active_pos` from `GET /billing` equal the counts enforcement uses, by creating records up to the limit and comparing the displayed count to the blocking point
-- [ ] T048 [P] [US3] Test the trial-length coupling (SC-004a): overriding `trial_length_days` changes both the `GET /plans` response and the length granted at signup, and leaves existing organizations' `trial_ends_at` untouched
+- [X] T045 [P] [US3] Integration test in `backend/tests/integration/`: invite past `max_users` returns 403, the message names the limit and its number, contains no "upgrade", and the member is **not** created (FR-012)
+- [X] T046 [P] [US3] Integration test: create past `max_active_pos` returns 403 with the same properties, and the order is not created
+- [X] T047 [P] [US3] Test that `current_users` / `current_active_pos` from `GET /billing` equal the counts enforcement uses, by creating records up to the limit and comparing the displayed count to the blocking point
+- [X] T048 [P] [US3] Test the trial-length coupling (SC-004a): overriding `trial_length_days` changes both the `GET /plans` response and the length granted at signup, and leaves existing organizations' `trial_ends_at` untouched
 
 ### Implementation for User Story 3
 
-- [ ] T049 [US3] Reword the limit refusals in `backend/src/services/billing.py:41,52`: drop "Upgrade to add more users." / "Upgrade to add more." and state what the trial includes instead — e.g. "User limit reached — your trial includes 3 users." The number MUST be interpolated from the `Subscription` row, not written into the string (FR-008, FR-013)
-- [ ] T050 [US3] Settle limit refusals on **403** (your board said "403/422"; `contracts/billing-info.md` picks one so the frontend has a single path). `describeApiError` already returns a string `detail` verbatim for sub-500 statuses, so the message reaches the user once the text is right
-- [ ] T051 [US3] Surface the server's refusal message in the UI on PO create and member invite, rather than a generic fallback (FR-013)
-- [ ] T052 [US3] Point the Billing limits display at `useTrialInfo` so the figures come from `GET /billing` for that organization (FR-008). `Billing.tsx:98` already complies — this preserves that through the T038–T042 rewrite
-- [ ] T053 [US3] Make `backend/src/scripts/seed.py:50` read `settings.trial_length_days` instead of its independent hardcoded `timedelta(days=14)`, so seeded and signed-up organizations cannot disagree (FR-011a)
-- [ ] T054 [US3] Confirm no surface presents paid tier limits as available entitlements while the tiers cannot be purchased, while **leaving enforcement intact** for any organization placed on a paid tier (FR-010; `data-model.md` invariant)
+- [X] T049 [US3] Reword the limit refusals in `backend/src/services/billing.py:41,52`: drop "Upgrade to add more users." / "Upgrade to add more." and state what the trial includes instead — e.g. "User limit reached — your trial includes 3 users." The number MUST be interpolated from the `Subscription` row, not written into the string (FR-008, FR-013)
+- [X] T050 [US3] Settle limit refusals on **403** (your board said "403/422"; `contracts/billing-info.md` picks one so the frontend has a single path). `describeApiError` already returns a string `detail` verbatim for sub-500 statuses, so the message reaches the user once the text is right
+- [X] T051 [US3] Surface the server's refusal message in the UI on PO create and member invite, rather than a generic fallback (FR-013)
+- [X] T052 [US3] Point the Billing limits display at `useTrialInfo` so the figures come from `GET /billing` for that organization (FR-008). `Billing.tsx:98` already complies — this preserves that through the T038–T042 rewrite
+- [X] T053 [US3] Make `backend/src/scripts/seed.py:50` read `settings.trial_length_days` instead of its independent hardcoded `timedelta(days=14)`, so seeded and signed-up organizations cannot disagree (FR-011a)
+- [X] T054 [US3] Confirm no surface presents paid tier limits as available entitlements while the tiers cannot be purchased, while **leaving enforcement intact** for any organization placed on a paid tier (FR-010; `data-model.md` invariant)
 
 **Checkpoint**: Every displayed limit is the enforced limit; one setting governs trial length everywhere.
 

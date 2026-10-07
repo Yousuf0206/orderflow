@@ -7,7 +7,7 @@ import { Card } from "../../components/ui/Card";
 import { FormField, Input, Select } from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
 import { TableSkeleton } from "../../components/ui/Skeleton";
-import { api, ApiError } from "../../services/apiClient";
+import { api, ApiError, describeApiError } from "../../services/apiClient";
 import { getMe } from "../../services/auth";
 
 interface Member {
@@ -42,21 +42,37 @@ export default function TeamMembers() {
       await api.post("/org/members/invite", { email, role });
       setEmail("");
       queryClient.invalidateQueries({ queryKey: ["members"] });
-    } catch {
-      setError("Could not send invite (already a member, or invalid role?).");
+    } catch (err) {
+      // Shows the server's actual reason. The old message guessed -- "already
+      // a member, or invalid role?" -- so hitting the user limit reported a
+      // cause that wasn't true and gave no hint what would help.
+      setError(describeApiError(err, "Could not send that invite. Please try again."));
     } finally {
       setInviting(false);
     }
   }
 
+  // Both of these previously had no error handling at all: a refusal (the
+  // last-owner guard, say) left the row unchanged with nothing said, which
+  // reads as a dead button rather than a rule.
   async function changeRole(id: string, newRole: string) {
-    await api.patch(`/org/members/${id}`, { role: newRole });
-    queryClient.invalidateQueries({ queryKey: ["members"] });
+    setError(null);
+    try {
+      await api.patch(`/org/members/${id}`, { role: newRole });
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+    } catch (err) {
+      setError(describeApiError(err, "Could not change that member's role."));
+    }
   }
 
   async function remove(id: string) {
-    await api.delete(`/org/members/${id}`);
-    queryClient.invalidateQueries({ queryKey: ["members"] });
+    setError(null);
+    try {
+      await api.delete(`/org/members/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+    } catch (err) {
+      setError(describeApiError(err, "Could not remove that member."));
+    }
   }
 
   if (membersError instanceof ApiError && membersError.status === 403) {

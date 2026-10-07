@@ -64,11 +64,14 @@ export default function PurchaseOrderForm() {
       });
       navigate(`/purchase-orders/${po.id}`);
     } catch (err) {
-      if (err instanceof ApiError) {
+      // Only a 409 is a duplicate PO number. This used to treat *every*
+      // ApiError as one, so hitting the plan limit told the user their PO
+      // number was taken -- a wrong reason they could never resolve.
+      if (err instanceof ApiError && err.status === 409) {
         setPoNumberError("That PO number is already in use.");
         poNumberRef.current?.focus();
       } else {
-        setFormError("Could not save purchase order. Please try again.");
+        setFormError(describeApiError(err, "Could not save purchase order. Please try again."));
       }
     } finally {
       setSaving(false);

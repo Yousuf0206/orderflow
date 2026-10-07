@@ -146,7 +146,11 @@ function BillingDetails({ info }: { info: BillingInfo }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">Active POs</dt>
+            {/* "Purchase orders", not "Active POs": the enforced count covers
+                every order that hasn't been deleted, fully dispatched ones
+                included. Labelling it "active" would promise that completed
+                orders free up room, which they don't. */}
+            <dt className="text-xs uppercase tracking-wide text-slate-400">Purchase orders</dt>
             <dd className="text-sm font-medium text-slate-900 dark:text-white">
               {info.current_active_pos} of {info.max_active_pos}
             </dd>
