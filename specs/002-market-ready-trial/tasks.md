@@ -265,15 +265,15 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 
 **Purpose**: Make the release gate real, then ship. Your board's T0.3 and T5.x.
 
-- [ ] T085 Correct the two items in `docs/SMOKE_CHECKLIST.md` that now contradict this feature: lines 40–42 require "a clear **upgrade** message" on limit rejection (must become a message naming the limit with no upgrade instruction, FR-013), and lines 46–47 require `/pricing` numbers to match `GET /plans` (must become: `/pricing` shows the trial message only and `GET /plans` returns no paid tiers while the flag is off)
-- [ ] T086 Add the four missing cases to `docs/SMOKE_CHECKLIST.md`: the stalled-request case, the trial-length coupling, the failed-export case, and the expired-trial copy (see `quickstart.md`)
-- [ ] T087 [P] Cross-check `docs/api-examples.md` for the `GET /plans` shape change from T036 and the `GET /billing` additions from T011 — frozen API examples that no longer match are a truth problem under Principle XI
-- [ ] T088 Run the full verification suite: `pytest` in `backend/`; `npm run test -- --run`, `npm run build`, and `npm run test:e2e` in `frontend/`
-- [ ] T089 Run all seven scenarios in [quickstart.md](./quickstart.md) against a real deployment, in a browser. Principle X rejects an API-level pass as evidence for the core loop
-- [ ] T090 Execute the core-loop e2e run 10 consecutive times on clean organizations to satisfy SC-002
+- [X] T085 Correct the two items in `docs/SMOKE_CHECKLIST.md` that now contradict this feature: lines 40–42 require "a clear **upgrade** message" on limit rejection (must become a message naming the limit with no upgrade instruction, FR-013), and lines 46–47 require `/pricing` numbers to match `GET /plans` (must become: `/pricing` shows the trial message only and `GET /plans` returns no paid tiers while the flag is off)
+- [X] T086 Add the four missing cases to `docs/SMOKE_CHECKLIST.md`: the stalled-request case, the trial-length coupling, the failed-export case, and the expired-trial copy (see `quickstart.md`)
+- [X] T087 [P] Cross-check `docs/api-examples.md` for the `GET /plans` shape change from T036 and the `GET /billing` additions from T011 — frozen API examples that no longer match are a truth problem under Principle XI
+- [X] T088 Run the full verification suite: `pytest` in `backend/`; `npm run test -- --run`, `npm run build`, and `npm run test:e2e` in `frontend/`
+- [X] T089 Run all seven scenarios in [quickstart.md](./quickstart.md) against a real deployment, in a browser. Principle X rejects an API-level pass as evidence for the core loop
+- [X] T090 Execute the core-loop e2e run 10 consecutive times on clean organizations to satisfy SC-002
 - [ ] T091 Repeat quickstart Scenarios 1, 3, and 5 at a phone viewport (Principle VIII)
 - [ ] T092 Walk the corrected `docs/SMOKE_CHECKLIST.md` manually against production (your T5.1)
-- [ ] T093 Write a short "Known limitations" note for beta users stating that paid plans are not open yet (your T5.3). `docs/` already holds a launch-limitations note from commit `0f4df3b` — update it rather than adding a second
+- [X] T093 Write a short "Known limitations" note for beta users stating that paid plans are not open yet (your T5.3). `docs/` already holds a launch-limitations note from commit `0f4df3b` — update it rather than adding a second
 - [ ] T094 Tag the release `v0.2.0-trial-beta` — **only after T088–T092 all pass**. Principle XIII: if smoke fails, the build is not announced regardless of what else is ready (your T5.4)
 - [ ] T095 Invite the first real trial users (your T5.5). **Outward-facing and irreversible — confirm with the product owner before sending.** Gated on T094
 

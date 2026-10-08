@@ -88,10 +88,10 @@ schema changes, this doc and the frontend payloads must be updated together.
 }
 
 // 403 — plan limit reached (max_active_pos)
-{ "detail": "Active PO limit (25) reached for the trial plan. Upgrade to add more." }
+{ "detail": "Purchase order limit reached — your trial includes 25 purchase orders. Get in touch and we'll raise it." }
 
 // 403 — read-only lockout (trial expired)
-{ "detail": "Organization is in read-only mode: trial expired. Upgrade to continue editing." }
+{ "detail": "Your trial has ended, so creating and editing is paused. Your records are still here to view and export — get in touch and we can extend your trial." }
 ```
 
 ## Dispatches
@@ -105,7 +105,7 @@ schema changes, this doc and the frontend payloads must be updated together.
 { "dispatch": { "id": "...", "purchase_order_id": "...", "dispatch_date": "2026-01-15", "qty": 40, "vehicle_ref": "TRK-12", "remarks": null }, "warning": null }
 
 // 200 Response — over-dispatch without confirm (not persisted)
-{ "dispatch": null, "warning": "This dispatch (1000) exceeds the remaining balance (60). Pass confirm=true to proceed anyway." }
+{ "dispatch": null, "warning": "This dispatch of 1000 is more than the 60 still remaining on this order. Confirm to record it anyway." }
 
 // 200 Response — over-dispatch with confirm=true (persisted)
 { "dispatch": { "...": "..." }, "warning": null }
@@ -132,16 +132,61 @@ schema changes, this doc and the frontend payloads must be updated together.
 
 ### `GET /billing` (owner only)
 ```json
-{ "plan_tier": "trial", "trial_ends_at": "2026-10-21T00:00:00Z", "is_read_only_locked": false, "max_users": 3, "max_active_pos": 25 }
+{
+  "plan_tier": "trial",
+  "trial_ends_at": "2026-10-21T00:00:00Z",
+  "is_read_only_locked": false,
+  "max_users": 3,
+  "max_active_pos": 25,
+  "current_users": 2,
+  "current_active_pos": 7,
+  "trial_length_days": 14,
+  "paid_plans_enabled": false,
+  "has_billing_account": false
+}
 ```
 
+The `current_*` counts are produced by the same helpers that enforce the limits,
+so the figures shown to a user are the ones their creates are refused at.
+`has_billing_account` is a boolean rather than the Stripe customer id, which
+stays server-side.
+
 ### `GET /plans` (public, no auth)
+
+An object, not a bare array: the trial length travels with it, because the
+marketing Pricing page is served to anonymous visitors who have no `/billing`
+to read it from.
+
 ```json
-[
-  { "tier": "starter", "price": "$29/mo", "max_users": 5, "max_active_pos": 100 },
-  { "tier": "business", "price": "$79/mo", "max_users": 20, "max_active_pos": 1000 },
-  { "tier": "pro", "price": "$199/mo", "max_users": 1000000, "max_active_pos": 1000000 }
-]
+// PAID_PLANS_ENABLED=false (the default)
+{ "paid_plans_enabled": false, "trial_length_days": 14, "plans": [] }
+```
+
+```json
+// PAID_PLANS_ENABLED=true
+{
+  "paid_plans_enabled": true,
+  "trial_length_days": 14,
+  "plans": [
+    { "tier": "starter", "price": "$29/mo", "max_users": 5, "max_active_pos": 100 },
+    { "tier": "business", "price": "$79/mo", "max_users": 20, "max_active_pos": 1000 },
+    { "tier": "pro", "price": "$199/mo", "max_users": 1000000, "max_active_pos": 1000000 }
+  ]
+}
+```
+
+`plans` is empty while gated rather than populated-and-flagged, so a client
+can't render a purchasable tier even by ignoring the flag.
+
+### `POST /billing/checkout-session` and `POST /billing/portal-session`
+
+Both refuse while paid plans are gated, before any Stripe call — so the path is
+closed even to a direct request, and configuring a Stripe key doesn't reopen it.
+
+```json
+// 403
+{ "detail": "Paid plans are not available yet." }
+{ "detail": "Billing management is not available yet." }
 ```
 
 ### `POST /org/members/invite` (owner only)
@@ -149,5 +194,8 @@ schema changes, this doc and the frontend payloads must be updated together.
 // Request
 { "email": "staff@acme.com", "role": "staff" }
 // 403 — plan limit reached (max_users)
-{ "detail": "User limit (3) reached for the trial plan. Upgrade to add more users." }
+{ "detail": "User limit reached — your trial includes 3 users. Remove a member to free up a seat, or get in touch and we'll raise it." }
 ```
+
+Refusal messages are shown to users verbatim, so they name the limit that
+stopped them and avoid instructing an upgrade, which is not currently possible.

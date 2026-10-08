@@ -26,7 +26,12 @@ async function createParty(page: import("@playwright/test").Page, unique: number
   await page.getByLabel("Party Code").fill(`E2E-${unique}`);
   await page.getByLabel("Party Name").fill(name);
   await page.getByRole("button", { name: /save party/i }).click();
-  await expect(page).toHaveURL(/\/parties\/.+/);
+
+  // Not just /parties/.+ -- "/parties/new" matches that too, so a failed save
+  // would slip through here and resurface later as a confusing empty party
+  // dropdown. Assert we actually reached the saved party's detail page.
+  await expect(page).toHaveURL(/\/parties\/(?!new)[^/]+$/);
+  await expect(page.getByRole("heading", { name })).toBeVisible();
 }
 
 async function createOrder(
@@ -44,6 +49,13 @@ async function createOrder(
   await page.getByLabel("Due Date").fill("2027-01-01");
   await page.getByRole("button", { name: /create purchase order/i }).click();
   await expect(page).toHaveURL(/\/purchase-orders\/.+/);
+
+  // Wait for the detail page to settle before any test types into it. The
+  // order and its dispatch history load as two separate requests, and typing
+  // into the dispatch form while the second is still landing can lose the
+  // keystrokes to a re-render.
+  await expect(page.getByText("Remaining")).toBeVisible();
+  await expect(page.getByText(/No dispatches recorded yet/i)).toBeVisible();
 }
 
 test("sign up, create PO, record partial dispatch, see live remaining balance", async ({ page }) => {
@@ -51,7 +63,9 @@ test("sign up, create PO, record partial dispatch, see live remaining balance", 
 
   await signUp(page, unique);
 
-  // The shell must know who you are straight after signup, not after a reload.
+  // The shell must know who you are on the first authenticated screen, not
+  // after a reload. /onboarding sits outside AppShell, so check from inside.
+  await page.goto("/dashboard");
   await expect(page.getByText(`E2E Co ${unique}`)).toBeVisible();
 
   await createParty(page, unique);
@@ -61,7 +75,7 @@ test("sign up, create PO, record partial dispatch, see live remaining balance", 
 
   const orderUrl = page.url();
 
-  await page.getByLabel("Qty").fill("30");
+  await page.getByRole("spinbutton", { name: /qty/i }).fill("30");
   await page.getByRole("button", { name: /add dispatch/i }).click();
 
   // Remaining must fall to 70 on the page already open. No reload: a number
@@ -85,12 +99,12 @@ test("over-dispatch is warned about and requires explicit confirmation", async (
   await createParty(page, unique, "Over Party");
   await createOrder(page, unique, "Over Party", "100");
 
-  await page.getByLabel("Qty").fill("30");
+  await page.getByRole("spinbutton", { name: /qty/i }).fill("30");
   await page.getByRole("button", { name: /add dispatch/i }).click();
   await expect(page.getByText("70").first()).toBeVisible();
 
   // 80 against 70 remaining: must warn rather than silently accept or silently reject.
-  await page.getByLabel("Qty").fill("80");
+  await page.getByRole("spinbutton", { name: /qty/i }).fill("80");
   await page.getByRole("button", { name: /add dispatch/i }).click();
 
   await expect(page.getByText(/exceed|more than|over/i).first()).toBeVisible();
@@ -105,7 +119,7 @@ test("a dispatch equal to the remaining balance completes without a warning", as
 
   // Exactly the remaining quantity is full fulfilment, not an over-dispatch --
   // the boundary an off-by-one in the comparison would get wrong.
-  await page.getByLabel("Qty").fill("100");
+  await page.getByRole("spinbutton", { name: /qty/i }).fill("100");
   await page.getByRole("button", { name: /add dispatch/i }).click();
 
   await expect(page.getByText("0").first()).toBeVisible();
@@ -116,6 +130,8 @@ test("logging out clears the session completely", async ({ page }) => {
 
   await signUp(page, unique);
 
+  // Log out lives in the app shell, which /onboarding is not inside.
+  await page.goto("/dashboard");
   await page.getByRole("button", { name: /log out|sign out/i }).click();
   await expect(page).toHaveURL(/login/);
 

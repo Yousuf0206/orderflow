@@ -1,8 +1,17 @@
 # Release Smoke Checklist
 
-Run manually against any new deploy before announcing it live. Every item here is also
-covered by an automated test (noted in parentheses) — this checklist is the human
-double-check before a production announcement, not a replacement for the test suite.
+**This is a release gate, not a formality.** If any item fails, the build is not announced
+to beta users — regardless of what else in the release is ready.
+
+Run manually against any new deploy. Most items are also covered by an automated test,
+noted in parentheses; where no test is named the check is manual only, either because it
+needs a real browser at a real viewport or because it needs a stalled connection that
+jsdom cannot simulate. Run the suites first:
+
+```bash
+cd backend  && pytest
+cd frontend && npm run test -- --run && npm run build && npm run test:e2e
+```
 
 ## Core loop
 - [ ] Sign up with a new email → lands on `/onboarding` (not a blank page or error)
@@ -37,19 +46,61 @@ double-check before a production announcement, not a replacement for the test su
   (`tests/integration/test_rbac.py`)
 
 ## Plan limits
-- [ ] Creating a purchase order past the plan's `max_active_pos` is rejected with a clear
-      upgrade message
-- [ ] Inviting a member past the plan's `max_users` is rejected with a clear upgrade message
-  (`tests/integration/test_plan_limits.py`)
+- [ ] Creating a purchase order past `max_active_pos` is rejected with a message that names
+      the limit and does **not** tell the user to upgrade (they can't)
+- [ ] Inviting a member past `max_users` is rejected the same way
+- [ ] The usage figures on `/billing` ("2 of 3") agree with where creates actually start
+      being refused
+  (`tests/integration/test_plan_limits.py`, `test_limits_truth.py`, `test_billing_contract.py`)
 
-## Pricing & billing truth
-- [ ] Numbers on `/pricing` match `GET /plans` (they're sourced from the same backend config
-      — see `backend/src/models/subscription.py::PLAN_LIMITS`)
-- [ ] `/privacy` and `/terms` both resolve and are linked from Signup, Pricing, and Billing
+## Trial-only positioning
+- [ ] `/pricing` shows the single trial message — trial length, no credit card, paid plans
+      coming soon — and **no** Starter/Business/Pro card or price
+- [ ] `GET /plans` returns `"plans": []` while `PAID_PLANS_ENABLED=false`
+- [ ] `/billing` shows plan Trial, the trial end date, and usage — with no upgrade button
+      and no "Manage billing"
+- [ ] A direct `POST /billing/checkout-session` returns 403, and the message names no
+      environment variable or vendor
+  (`tests/integration/test_paid_plans_gate.py`, `tests/unit/paidSurfaceGated.test.tsx`)
+
+## Trial length is stated from one place
+- [ ] Set `TRIAL_LENGTH_DAYS=21`, restart, reload `/` and `/pricing` → both say 21 days,
+      nothing still says 14
+- [ ] A new signup gets a 21-day trial; an organization created earlier keeps its original
+      end date
+  (`tests/integration/test_limits_truth.py`)
+
+## Expired trial
+- [ ] A locked-out organization is told the trial ended, that records remain viewable and
+      exportable, and is **not** told to upgrade
+- [ ] A blocked create shows that message rather than failing silently
+
+## Legal & truth
+- [ ] `/privacy` and `/terms` both resolve and are linked from Signup, Pricing, Billing, and
+      the footer
+- [ ] Neither document describes paid billing, checkout, or card handling as live
 
 ## Reports
 - [ ] Each report (Remaining by Party, Overdue Orders, Dispatch History) loads with data
 - [ ] CSV/Excel/PDF export downloads with a filename like `<org-slug>-<report>-<date>.<ext>`
+- [ ] A **failed** export (stop the backend, or use an expired token) shows an error and
+      downloads **nothing** — never a file containing a JSON error
+  (`tests/unit/noSilentFailures.test.tsx`)
+
+## Nothing loads forever
+Open each of these, then block or kill the request in devtools → Network:
+- [ ] Party detail → error + Try again, never "Loading party…"
+- [ ] Purchase order detail → error + Try again, never "Loading purchase order…"
+- [ ] Dashboard, Parties, Purchase Orders, Reports, Audit Log, Team, Company Settings →
+      error + Try again
+- [ ] A **stalled** request (one that never settles, not one that fails) resolves to an
+      error within ~12s — this is the case a screen can still hang on after `isError` is
+      handled
+- [ ] Notifications panel on failure does **not** say "You're all caught up"
+- [ ] An empty list shows an empty state naming a next action, not a false error
+- [ ] Repeat party detail, dashboard, and one empty state at phone width — no sideways
+      scrolling
+  (`tests/unit/QueryState.test.tsx`, `coreLoopFailureStates.test.tsx`, `noSilentFailures.test.tsx`)
 
 ## Trust & SEO
 - [ ] Favicon shows in the browser tab (not broken/missing)
