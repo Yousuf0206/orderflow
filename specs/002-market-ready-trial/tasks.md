@@ -194,19 +194,19 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 
 ### Tests for User Story 4
 
-- [ ] T055 [P] [US4] Failure-state tests in `frontend/tests/` for each module adopted in T057–T061
-- [ ] T056 [P] [US4] Mobile-width rendering tests for the error and empty states at a phone viewport (Principle VIII, gated in the plan's Constitution Check)
+- [X] T055 [P] [US4] Failure-state tests in `frontend/tests/` for each module adopted in T057–T061
+- [X] T056 [P] [US4] Mobile-width rendering tests for the error and empty states at a phone viewport (Principle VIII, gated in the plan's Constitution Check)
 
 ### Implementation for User Story 4
 
-- [ ] T057 [P] [US4] Adopt `QueryState` in `frontend/src/pages/audit/AuditLog.tsx`
-- [ ] T058 [P] [US4] Adopt `QueryState` in `frontend/src/pages/reports/Reports.tsx`
-- [ ] T059 [P] [US4] Adopt `QueryState` in `frontend/src/pages/settings/CompanySettings.tsx`
-- [ ] T060 [P] [US4] Adopt `QueryState` in `frontend/src/components/Notifications.tsx`
-- [ ] T061 [P] [US4] Adopt `QueryState` in `frontend/src/pages/admin/SuperAdmin.tsx`
-- [ ] T062 [US4] Reconcile `frontend/src/pages/settings/TeamMembers.tsx` with `QueryState` — it is the only module that already handles an error state and is the reference pattern; converge it rather than leaving two conventions
-- [ ] T063 [US4] Audit every remaining `useQuery` call site for the `isLoading || !data` shape and confirm none survives (FR-027). 15 modules call `useQuery`; all must be accounted for
-- [ ] T064 [US4] Confirm every list and detail screen renders an empty state naming a next action when a request succeeds with zero records (FR-030)
+- [X] T057 [P] [US4] Adopt `QueryState` in `frontend/src/pages/audit/AuditLog.tsx`
+- [X] T058 [P] [US4] Adopt `QueryState` in `frontend/src/pages/reports/Reports.tsx`
+- [X] T059 [P] [US4] Adopt `QueryState` in `frontend/src/pages/settings/CompanySettings.tsx`
+- [X] T060 [P] [US4] Adopt `QueryState` in `frontend/src/components/Notifications.tsx`
+- [X] T061 [P] [US4] Adopt `QueryState` in `frontend/src/pages/admin/SuperAdmin.tsx`
+- [X] T062 [US4] Reconcile `frontend/src/pages/settings/TeamMembers.tsx` with `QueryState` — it is the only module that already handles an error state and is the reference pattern; converge it rather than leaving two conventions
+- [X] T063 [US4] Audit every remaining `useQuery` call site for the `isLoading || !data` shape and confirm none survives (FR-027). 15 modules call `useQuery`; all must be accounted for
+- [X] T064 [US4] Confirm every list and detail screen renders an empty state naming a next action when a request succeeds with zero records (FR-030)
 
 **Checkpoint**: No screen in the application can be left in a loading state.
 
@@ -222,23 +222,23 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 
 ### Tests for User Story 5
 
-- [ ] T065 [P] [US5] Verify the API routes the Team and Reports pages call actually exist and respond — no 404s were found during the survey, so this confirms rather than repairs (your T4.1)
-- [ ] T066 [P] [US5] Integration test for invitation re-use and tampering: an expired, already-used, or invalid invite is refused with an understandable message (FR-035) — `backend/src/api/auth.py:155` is the existing guard
-- [ ] T067 [P] [US5] Integration test for the sole-owner guard covering **both** removal and self-demotion (FR-036). A removal-only guard can be bypassed by demoting the last owner — a gap the spec flagged as an edge case
-- [ ] T068 [P] [US5] Test that an export receiving a 403 or 500 shows an error and downloads **no** file, and that a network failure during export produces a message rather than an unhandled rejection
+- [X] T065 [P] [US5] Verify the API routes the Team and Reports pages call actually exist and respond — no 404s were found during the survey, so this confirms rather than repairs (your T4.1)
+- [X] T066 [P] [US5] Integration test for invitation re-use and tampering: an expired, already-used, or invalid invite is refused with an understandable message (FR-035) — `backend/src/api/auth.py:155` is the existing guard
+- [X] T067 [P] [US5] Integration test for the sole-owner guard covering **both** removal and self-demotion (FR-036). A removal-only guard can be bypassed by demoting the last owner — a gap the spec flagged as an edge case
+- [X] T068 [P] [US5] Test that an export receiving a 403 or 500 shows an error and downloads **no** file, and that a network failure during export produces a message rather than an unhandled rejection
 
 ### Implementation for User Story 5
 
-- [ ] T069 [US5] Verify the member list shows each member's role and invitation status (FR-032), and that an invite creates a clearly pending member (FR-033). With `smtp_host` empty by default (`backend/src/core/config.py:21`) no email is delivered, so this visible status is the entire mechanism — your board's "else pending state" is the default-deployment reality, not the fallback
-- [ ] T070 [US5] Verify accepting a valid invitation grants access with the invited role and updates the member's status (FR-034)
-- [ ] T071 [US5] Extend the sole-owner guard in `backend/src/api/org.py` to cover self-demotion as well as self-removal (FR-036)
-- [ ] T072 [US5] Verify remaining-balance-by-party is visible in `frontend/src/pages/reports/Reports.tsx` (FR-037)
-- [ ] T073 [US5] Add a `resp.ok` check and a `catch` to `exportReport` in `frontend/src/pages/reports/Reports.tsx:34-50`. It currently hands a 403 or 500 response body to `URL.createObjectURL`, downloading a JSON error as `report.csv`, and has only a `finally` so failures produce an unhandled rejection with no user feedback (FR-031, FR-039). **CSV already works** — this is the actual defect behind your T4.5
-- [ ] T074 [US5] Keep all three export formats offered. CSV, XLSX, and PDF all work server-side (`backend/src/api/reports.py:172-220`) and the frontend already streams blobs for each, so **nothing needs hiding** under FR-039 — your T4.6 has no work to do beyond T073
-- [ ] T075 [US5] Verify exporting a report with zero rows produces a valid empty file or a clear message, not a corrupt download (spec edge case)
-- [ ] T076 [US5] Verify the audit log lists recent creates and updates for parties, POs, and dispatches (FR-040)
-- [ ] T077 [US5] Verify the audit log shows a readable empty state on a fresh organization (FR-041)
-- [ ] T078 [US5] Verify onboarding steps describe capabilities that exist (FR-042), the primary action leads to creating a party, and skip leads to the dashboard (FR-043). Sample-data loading is **out of scope** — deferred per `spec.md` Assumptions
+- [X] T069 [US5] Verify the member list shows each member's role and invitation status (FR-032), and that an invite creates a clearly pending member (FR-033). With `smtp_host` empty by default (`backend/src/core/config.py:21`) no email is delivered, so this visible status is the entire mechanism — your board's "else pending state" is the default-deployment reality, not the fallback
+- [X] T070 [US5] Verify accepting a valid invitation grants access with the invited role and updates the member's status (FR-034)
+- [X] T071 [US5] Extend the sole-owner guard in `backend/src/api/org.py` to cover self-demotion as well as self-removal (FR-036)
+- [X] T072 [US5] Verify remaining-balance-by-party is visible in `frontend/src/pages/reports/Reports.tsx` (FR-037)
+- [X] T073 [US5] Add a `resp.ok` check and a `catch` to `exportReport` in `frontend/src/pages/reports/Reports.tsx:34-50`. It currently hands a 403 or 500 response body to `URL.createObjectURL`, downloading a JSON error as `report.csv`, and has only a `finally` so failures produce an unhandled rejection with no user feedback (FR-031, FR-039). **CSV already works** — this is the actual defect behind your T4.5
+- [X] T074 [US5] Keep all three export formats offered. CSV, XLSX, and PDF all work server-side (`backend/src/api/reports.py:172-220`) and the frontend already streams blobs for each, so **nothing needs hiding** under FR-039 — your T4.6 has no work to do beyond T073
+- [X] T075 [US5] Verify exporting a report with zero rows produces a valid empty file or a clear message, not a corrupt download (spec edge case)
+- [X] T076 [US5] Verify the audit log lists recent creates and updates for parties, POs, and dispatches (FR-040)
+- [X] T077 [US5] Verify the audit log shows a readable empty state on a fresh organization (FR-041)
+- [X] T078 [US5] Verify onboarding steps describe capabilities that exist (FR-042), the primary action leads to creating a party, and skip leads to the dashboard (FR-043). Sample-data loading is **out of scope** — deferred per `spec.md` Assumptions
 
 **Checkpoint**: Nothing in the beta surface is visible but non-functional.
 

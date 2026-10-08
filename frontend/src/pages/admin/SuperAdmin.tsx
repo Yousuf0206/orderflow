@@ -2,10 +2,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, Pause, ShieldAlert } from "lucide-react";
 
 import { Card } from "../../components/ui/Card";
+import ErrorState from "../../components/ui/ErrorState";
 import PageHeader from "../../components/ui/PageHeader";
+import QueryState from "../../components/ui/QueryState";
 import { KpiSkeletonRow, TableSkeleton } from "../../components/ui/Skeleton";
 import StatCard from "../../components/ui/StatCard";
-import { api } from "../../services/apiClient";
+import { api, describeApiError } from "../../services/apiClient";
 
 interface OrgRow {
   id: string;
@@ -24,11 +26,23 @@ interface Metrics {
 
 export default function SuperAdmin() {
   const queryClient = useQueryClient();
-  const { data: orgs, isLoading: orgsLoading } = useQuery({
+  const {
+    data: orgs,
+    isLoading: orgsLoading,
+    isError: orgsFailed,
+    error: orgsError,
+    refetch: refetchOrgs,
+  } = useQuery({
     queryKey: ["admin-orgs"],
     queryFn: () => api.get<OrgRow[]>("/admin/organizations"),
   });
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const {
+    data: metrics,
+    isLoading: metricsLoading,
+    isError: metricsFailed,
+    error: metricsError,
+    refetch: refetchMetrics,
+  } = useQuery({
     queryKey: ["admin-metrics"],
     queryFn: () => api.get<Metrics>("/admin/metrics"),
   });
@@ -43,7 +57,12 @@ export default function SuperAdmin() {
     <div className="space-y-6">
       <PageHeader title="Super Admin" description="Manage organizations across the platform." />
 
-      {metricsLoading || !metrics ? (
+      {metricsFailed ? (
+        <ErrorState
+          description={describeApiError(metricsError, "We couldn't load platform metrics.")}
+          onRetry={refetchMetrics}
+        />
+      ) : metricsLoading || !metrics ? (
         <KpiSkeletonRow count={3} />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -54,9 +73,18 @@ export default function SuperAdmin() {
       )}
 
       <Card className="overflow-x-auto">
-        {orgsLoading ? (
-          <TableSkeleton rows={5} cols={5} />
-        ) : (
+        <QueryState
+          isLoading={orgsLoading}
+          isError={orgsFailed}
+          error={orgsError}
+          data={orgs}
+          refetch={refetchOrgs}
+          errorFallback="We couldn't load the organization list."
+          loading={<TableSkeleton rows={5} cols={5} />}
+          isEmpty={(rows) => rows.length === 0}
+          empty={<p className="p-5 text-sm text-slate-500">No organizations yet.</p>}
+        >
+          {(rows) => (
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
@@ -69,7 +97,7 @@ export default function SuperAdmin() {
               </tr>
             </thead>
             <tbody>
-              {(orgs ?? []).map((o) => (
+              {rows.map((o) => (
                 <tr key={o.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
                   <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{o.name}</td>
                   <td className="px-5 py-3 capitalize text-slate-600 dark:text-slate-300">{o.plan_tier}</td>
@@ -98,7 +126,8 @@ export default function SuperAdmin() {
               ))}
             </tbody>
           </table>
-        )}
+          )}
+        </QueryState>
       </Card>
     </div>
   );

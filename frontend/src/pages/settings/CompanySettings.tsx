@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { FormField, Input } from "../../components/ui/Field";
+import ErrorState from "../../components/ui/ErrorState";
 import PageHeader from "../../components/ui/PageHeader";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { api } from "../../services/apiClient";
+import { api, describeApiError } from "../../services/apiClient";
 
 interface Org {
   name: string;
@@ -18,10 +19,14 @@ interface Org {
 
 export default function CompanySettings() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: ["org"], queryFn: () => api.get<Org>("/org") });
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["org"],
+    queryFn: () => api.get<Org>("/org"),
+  });
   const [form, setForm] = useState<Org | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (data) setForm(data);
@@ -35,14 +40,34 @@ export default function CompanySettings() {
     e.preventDefault();
     if (!form) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await api.patch("/org", form);
       queryClient.invalidateQueries({ queryKey: ["org"] });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      // Previously a bare `finally`: a failed save looked identical to a
+      // successful one minus the confirmation, so settings silently reverted
+      // on the next load.
+      setSaveError(describeApiError(err, "Could not save your settings. Please try again."));
     } finally {
       setSaving(false);
     }
+  }
+
+  // Error before loading: `isLoading || !form` alone would sit on the skeleton
+  // forever once the fetch had failed.
+  if (isError) {
+    return (
+      <div className="max-w-xl space-y-4">
+        <PageHeader title="Company Settings" />
+        <ErrorState
+          description={describeApiError(error, "We couldn't load your company settings.")}
+          onRetry={refetch}
+        />
+      </div>
+    );
   }
 
   if (isLoading || !form) {
@@ -62,6 +87,11 @@ export default function CompanySettings() {
           {saved && (
             <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
               Saved.
+            </p>
+          )}
+          {saveError && (
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
+              {saveError}
             </p>
           )}
           <FormField label="Company Name">
