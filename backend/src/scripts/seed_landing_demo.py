@@ -22,6 +22,7 @@ numbers.
 
 import argparse
 from datetime import UTC, date, datetime, timedelta
+from urllib.parse import urlparse
 
 from src.core.config import settings
 from src.core.db import SessionLocal
@@ -37,6 +38,30 @@ from src.models.user import User
 ORG_NAME = "OrderFlow Demo"
 OWNER_EMAIL = "demo@orderflow.example"
 OWNER_PASSWORD = "password123"  # noqa: S105 - local fixture only, never deployed
+
+LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "db", "postgres"}
+
+
+def assert_local_database() -> None:
+    """Refuse to seed anything but a local database.
+
+    This script writes fixture rows and, with --recreate, hard-deletes them.
+    `DATABASE_URL` is read from backend/.env, which on a developer machine may
+    well point at the hosted database rather than a local one -- in which case
+    this would be inventing demo organizations in front of real users, and
+    --recreate would be a hard delete against production.
+
+    --i-know-this-is-not-local exists for the rare case where someone really
+    does want fixture data on a remote database. It has to be typed out.
+    """
+    host = urlparse(settings.database_url).hostname or ""
+    if host in LOCAL_HOSTS:
+        return
+    raise SystemExit(
+        f"Refusing to run: DATABASE_URL points at {host!r}, which is not a local database.\n"
+        f"This script creates fixture data and --recreate hard-deletes it.\n"
+        f"Point backend/.env at a local Postgres, or pass --i-know-this-is-not-local."
+    )
 
 
 def _delete_existing(db, org: Organization) -> None:
@@ -204,5 +229,12 @@ def run(recreate: bool = False) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Seed the landing-page screenshot fixture.")
     parser.add_argument("--recreate", action="store_true", help="Remove and rebuild the fixture org.")
+    parser.add_argument(
+        "--i-know-this-is-not-local",
+        action="store_true",
+        help="Allow running against a non-local database. Think first.",
+    )
     args = parser.parse_args()
+    if not args.i_know_this_is_not_local:
+        assert_local_database()
     run(recreate=args.recreate)
