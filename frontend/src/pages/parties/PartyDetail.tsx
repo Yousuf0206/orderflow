@@ -56,7 +56,10 @@ export default function PartyDetail() {
 
 function PartyDetailView({ data }: { data: PartyDetailData }) {
   return (
-    <div className="space-y-6">
+    // data-capture marks the region the landing-page screenshot script crops
+    // (specs/003-landing-page-upgrade/contracts/image-assets.md). It includes
+    // the party header so the crop names the party whose orders are shown.
+    <div className="space-y-6" data-capture="party-open-orders">
       <PageHeader
         title={data.party.party_name}
         description={`${data.party.party_code}${data.party.city ? ` · ${data.party.city}` : ""}`}

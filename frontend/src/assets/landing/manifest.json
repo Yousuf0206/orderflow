@@ -1,0 +1,149 @@
+{
+  "capturedAt": "2026-10-08T17:06:25.380Z",
+  "appCommit": "5536d0d",
+  "fixture": "seed_landing_demo.py",
+  "fixtureOrg": "OrderFlow Demo",
+  "viewport": {
+    "width": 1440,
+    "height": 900,
+    "deviceScaleFactor": 2
+  },
+  "assets": [
+    {
+      "name": "po-detail",
+      "route": "/purchase-orders/:id",
+      "selector": "data-capture=\"po-page\"",
+      "files": {
+        "1x": "po-detail.webp",
+        "2x": "po-detail@2x.webp"
+      },
+      "dimensions": {
+        "width": 720,
+        "height": 444
+      },
+      "bytes": {
+        "1x": 10072,
+        "2x": 24156
+      }
+    },
+    {
+      "name": "po-summary",
+      "route": "/purchase-orders/:id",
+      "selector": "data-capture=\"po-summary\"",
+      "files": {
+        "1x": "po-summary.webp",
+        "2x": "po-summary@2x.webp"
+      },
+      "dimensions": {
+        "width": 560,
+        "height": 88
+      },
+      "bytes": {
+        "1x": 2780,
+        "2x": 6732
+      }
+    },
+    {
+      "name": "step-po",
+      "route": "/purchase-orders/:id",
+      "selector": "data-capture=\"po-summary\"",
+      "files": {
+        "1x": "step-po.webp",
+        "2x": "step-po@2x.webp"
+      },
+      "dimensions": {
+        "width": 320,
+        "height": 51
+      },
+      "bytes": {
+        "1x": 1290,
+        "2x": 3196
+      }
+    },
+    {
+      "name": "dispatch-history",
+      "route": "/purchase-orders/:id",
+      "selector": "data-capture=\"dispatch-history\"",
+      "files": {
+        "1x": "dispatch-history.webp",
+        "2x": "dispatch-history@2x.webp"
+      },
+      "dimensions": {
+        "width": 640,
+        "height": 103
+      },
+      "bytes": {
+        "1x": 2240,
+        "2x": 5580
+      }
+    },
+    {
+      "name": "step-dispatch",
+      "route": "/purchase-orders/:id",
+      "selector": "data-capture=\"dispatch-history\"",
+      "files": {
+        "1x": "step-dispatch.webp",
+        "2x": "step-dispatch@2x.webp"
+      },
+      "dimensions": {
+        "width": 320,
+        "height": 51
+      },
+      "bytes": {
+        "1x": 782,
+        "2x": 2086
+      }
+    },
+    {
+      "name": "dashboard-balance",
+      "route": "/dashboard",
+      "selector": "data-capture=\"dashboard-balance\"",
+      "files": {
+        "1x": "dashboard-balance.webp",
+        "2x": "dashboard-balance@2x.webp"
+      },
+      "dimensions": {
+        "width": 640,
+        "height": 267
+      },
+      "bytes": {
+        "1x": 6906,
+        "2x": 15688
+      }
+    },
+    {
+      "name": "party-open-orders",
+      "route": "/parties/:id",
+      "selector": "data-capture=\"party-open-orders\"",
+      "files": {
+        "1x": "party-open-orders.webp",
+        "2x": "party-open-orders@2x.webp"
+      },
+      "dimensions": {
+        "width": 640,
+        "height": 122
+      },
+      "bytes": {
+        "1x": 4734,
+        "2x": 11572
+      }
+    },
+    {
+      "name": "step-party",
+      "route": "/parties/:id",
+      "selector": "data-capture=\"party-open-orders\"",
+      "files": {
+        "1x": "step-party.webp",
+        "2x": "step-party@2x.webp"
+      },
+      "dimensions": {
+        "width": 320,
+        "height": 61
+      },
+      "bytes": {
+        "1x": 1638,
+        "2x": 4228
+      }
+    }
+  ]
+}

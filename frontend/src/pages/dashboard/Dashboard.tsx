@@ -106,6 +106,11 @@ function DashboardView({ data }: { data: DashboardData }) {
     <div className="space-y-6">
       <PageHeader title="Dashboard" description="Live overview of remaining balances and delivery status." />
 
+      {/* data-capture marks the region the landing-page screenshot script
+          crops (specs/003-landing-page-upgrade/contracts/image-assets.md).
+          It spans the KPI row and both chart panels, so the crop shows the
+          remaining balance alongside the per-party breakdown. */}
+      <div data-capture="dashboard-balance" className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Total Remaining Balance"
@@ -191,6 +196,7 @@ function DashboardView({ data }: { data: DashboardData }) {
             )}
           </div>
         </Card>
+      </div>
       </div>
 
       <Card>
