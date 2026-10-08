@@ -1,33 +1,40 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.1.0 → 1.1.1 (PATCH: supplies a definition that was already
-  referenced; no principle added, removed, or redefined)
-Modified principles:
-  - XIV. Paid Work Is Gated — the gate's content is unchanged. The principle
-    already gated paid work on "the launch-readiness P0 items"; this names
-    which items those are, so the gate is decided by evidence instead of
-    judgement. Adds a substance restatement so the gate survives the
-    referenced file being moved or renamed, and clarifies that clearing the
-    gate permits paid work to be scoped rather than enabling paid plans
-    (which still requires verified checkout under Principle IX).
-Added sections: none
+Version change: 1.1.1 → 1.2.0 (MINOR: five new principles governing the
+  public landing page; no existing principle removed or redefined)
+Added sections:
+  - XV. The Landing Page Shows the Product
+  - XVI. One Primary Action on the Landing Page
+  - XVII. Landing Proof Must Be Real
+  - XVIII. The Landing Page Must Be Fast and Reachable on a Phone
+  - XIX. Screenshots Match the Shipped UI
+  - Launch Gates & Release Workflow: added the "Landing review" gate.
+Modified principles: none redefined. Three pre-existing principles are now
+  also cited from the new landing principles rather than restated:
+  - IX. Trial-First Positioning — XVI applies it to the landing page.
+  - XI. Truth Over Marketing — XVII extends it to social proof.
+  - VIII. Mobile + Desktop Equality — XVIII extends it to the landing page,
+    which is not a core workflow and so was not previously covered.
 Removed sections: none
-Deferred items / TODOs: none remain.
-  - TODO(P0_DEFINITION): RESOLVED. Principle XIV now names Phases 2–5 of
-    specs/002-market-ready-trial/tasks.md, which are complete.
-  - TODO(RATIFICATION_DATE): RESOLVED. Confirmed as 2026-10-06, carried as a
-    placeholder since v1.0.0. Recorded without a version bump: it completes
-    v1.0.0's record rather than changing any rule, and bumping would imply a
-    governance change a reader would then go looking for. Consistent with
-    v1.0.0's own "Last Amended: 2026-10-06".
+Deferred items / TODOs: none.
+Source of this amendment:
+  - A scoped "OrderFlow Landing & First Impression" brief supplied on
+    2026-10-08. Its sixth non-negotiable (trial-first messaging on the
+    landing, pricing linked but not sold) is not given its own principle
+    because Principles IX and XIV already carry it; XVI states the landing
+    consequence so a reader of the landing rules does not have to infer it.
 Templates requiring follow-up:
   - .specify/templates/plan-template.md and spec-template.md do not
     reference principle counts or names directly; re-check during the next
-    /speckit-plan run for alignment with Principles IX–XIV, particularly
-    the smoke-test gate in Principle XIII.
-Note on the referenced file:
-  - Principle XIV now points at a feature-scoped path. That is deliberate --
+    /speckit-plan run for alignment with Principles IX–XIX.
+Known gap at amendment time (not a constitution change):
+  - frontend/src/pages/marketing/Landing.tsx is 211 lines and
+    frontend/public/ holds only favicon.svg and og-image.svg, so no product
+    screenshot asset exists yet. Principle XV is therefore not currently
+    satisfied; closing it is feature work, not governance work.
+Note on the file referenced by Principle XIV:
+  - Principle XIV points at a feature-scoped path. That is deliberate --
     it is where the evidence lives -- and the accompanying substance
     restatement is what keeps the gate meaningful if the path changes. A
     future amendment that supersedes those phases should update the pointer
@@ -176,6 +183,65 @@ phases permits paid work to be *scoped*; it does not by itself enable paid
 plans, which additionally requires checkout verified end to end per Principle
 IX.
 
+### XV. The Landing Page Shows the Product
+The public landing page MUST show the product above the fold. The hero MUST
+include a screenshot of a real OrderFlow screen — a purchase-order detail or a
+remaining-balance view — either captured from the running application or
+reproduced faithfully from it. A text-only hero MUST NOT ship to the public
+landing page. "Above the fold" means visible without scrolling at 1280×800 on
+desktop and within the first viewport on a 390px-wide phone.
+
+**Rationale:** a first-time visitor decides whether this is a real product
+before reading a sentence. Partial dispatches and remaining balances are
+visual ideas; describing them in prose reads as a template, while one true
+screen reads as software that exists.
+
+### XVI. One Primary Action on the Landing Page
+The landing page MUST present exactly one primary call to action: start the
+free trial. Any secondary action MUST be soft — "See how it works", a scroll
+cue, or a link to pricing — and MUST be visually subordinate to the primary
+one. Competing primary calls to action MUST NOT appear, and per Principles IX
+and XIV no paid call to action may be presented as available. Pricing MAY be
+linked; it MUST NOT be sold on this page, and trial-first messaging stays.
+
+**Rationale:** two primary actions are no primary action. The landing page has
+one job in this phase, which is to get a real trader into a trial.
+
+### XVII. Landing Proof Must Be Real
+Social proof on the landing page MUST be true. Customer counts, company logos,
+testimonials, ratings, and reviews MUST NOT be shown unless they are real,
+attributable, and permitted to be shown. Until real logos exist, naming the
+industries OrderFlow is built for — steel, cement, hardware, building
+materials — is permitted proof, because it is a claim about the product's
+focus rather than about customers it does not have.
+
+**Rationale:** this extends Principle XI to the first screen a stranger sees.
+An invented customer count is the one mistake that cannot be walked back once
+a real buyer notices it.
+
+### XVIII. The Landing Page Must Be Fast and Reachable on a Phone
+The landing page MUST load fast. For v1 it MUST prefer static images over
+video or animation for the product shot, and images MUST be sized and
+compressed for the viewport that requests them. On mobile the layout MUST
+stack to a single column, and the primary call to action MUST be reachable
+without horizontal scrolling at 390px width.
+
+**Rationale:** Principle VIII covers the core workflows but not the landing
+page. A landing page that needs a sideways swipe to reach its only button
+fails before the product gets a chance.
+
+### XIX. Screenshots Match the Shipped UI
+Any screenshot or UI reproduction on the landing page MUST match the
+application as currently deployed: the same colors, the same layout, and the
+labels Ordered / Dispatched / Remaining as the UI spells them. Features that
+are not live MUST NOT appear in a landing screenshot, mockup, or caption.
+When a landing screenshot and the application disagree, the screenshot is the
+defect.
+
+**Rationale:** a screenshot is a promise about what happens after signup.
+Showing a screen the user will not find, or a feature that does not exist,
+converts a visitor into a disappointed trial user — the most expensive kind.
+
 ## Constraints
 
 - Primary market: SME traders (steel, cement, hardware, building materials).
@@ -206,6 +272,14 @@ IX.
 - **Scope check.** Pull requests touching Stripe, checkout, upgrade paths, or
   paid CTAs MUST either be limited to hiding/disabling those surfaces or cite
   the completed P0 gate from Principle XIV.
+- **Landing review.** Any change to the public landing page MUST state, at
+  review time, that the hero still shows a real product screen (XV), that
+  there is still exactly one primary call to action (XVI), that every proof
+  claim on the page is real (XVII), that the primary call to action is
+  reachable at 390px width without horizontal scroll (XVIII), and that every
+  screenshot still matches the deployed UI (XIX). A change that ships a UI
+  change the landing screenshots contradict MUST update those screenshots in
+  the same unit of work or record why they may diverge temporarily.
 
 ## Governance
 
@@ -227,4 +301,11 @@ They remain in force until paid billing is verified end-to-end, at which
 point relaxing or removing them requires its own amendment under the
 procedure above — they do not lapse implicitly.
 
-**Version**: 1.1.1 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-08
+Of the landing principles, two are phase-scoped in the same way: XVI's single
+trial call to action, and XVII's allowance of industry naming in place of
+logos, which a later amendment may replace with real customer proof once it
+exists. Principles XV, XVIII, and XIX are not phase-scoped — showing the real
+product, loading fast on a phone, and matching the shipped UI apply for as
+long as OrderFlow has a public landing page.
+
+**Version**: 1.2.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-08
