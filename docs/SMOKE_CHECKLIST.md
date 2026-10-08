@@ -98,9 +98,12 @@ Open each of these, then block or kill the request in devtools → Network:
       handled
 - [ ] Notifications panel on failure does **not** say "You're all caught up"
 - [ ] An empty list shows an empty state naming a next action, not a false error
-- [ ] Repeat party detail, dashboard, and one empty state at phone width — no sideways
-      scrolling
   (`tests/unit/QueryState.test.tsx`, `coreLoopFailureStates.test.tsx`, `noSilentFailures.test.tsx`)
+
+## Mobile (Principle VIII)
+- [ ] Public pages, the empty dashboard, Billing, error states, and the whole core loop
+      at 390px wide — no sideways scrolling, and the loop is completable
+  (`tests/e2e/mobile-viewport.spec.ts` — this one is automated; run `npm run test:e2e`)
 
 ## Trust & SEO
 - [ ] Favicon shows in the browser tab (not broken/missing)

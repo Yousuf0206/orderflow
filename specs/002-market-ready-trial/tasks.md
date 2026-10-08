@@ -271,7 +271,7 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 - [X] T088 Run the full verification suite: `pytest` in `backend/`; `npm run test -- --run`, `npm run build`, and `npm run test:e2e` in `frontend/`
 - [X] T089 Run all seven scenarios in [quickstart.md](./quickstart.md) against a real deployment, in a browser. Principle X rejects an API-level pass as evidence for the core loop
 - [X] T090 Execute the core-loop e2e run 10 consecutive times on clean organizations to satisfy SC-002
-- [ ] T091 Repeat quickstart Scenarios 1, 3, and 5 at a phone viewport (Principle VIII)
+- [X] T091 Repeat quickstart Scenarios 1, 3, and 5 at a phone viewport (Principle VIII)
 - [ ] T092 Walk the corrected `docs/SMOKE_CHECKLIST.md` manually against production (your T5.1)
 - [X] T093 Write a short "Known limitations" note for beta users stating that paid plans are not open yet (your T5.3). `docs/` already holds a launch-limitations note from commit `0f4df3b` — update it rather than adding a second
 - [ ] T094 Tag the release `v0.2.0-trial-beta` — **only after T088–T092 all pass**. Principle XIII: if smoke fails, the build is not announced regardless of what else is ready (your T5.4)
