@@ -11,8 +11,8 @@ export default function TermsOfService() {
       <h2>The service</h2>
       <p>
         OrderFlow lets your organization track purchase orders, partial dispatches, and remaining
-        balances. New organizations start on a free trial; continued use on a paid plan is billed
-        according to the plan you select, through Stripe.
+        balances. It is currently available as a free trial only. We don't sell paid plans yet and
+        collect no payment details.
       </p>
 
       <h2>Your account</h2>
@@ -25,8 +25,14 @@ export default function TermsOfService() {
       <h2>Trials and billing</h2>
       <ul>
         <li>Trials run for a fixed period and don't require a credit card to start.</li>
-        <li>When a trial ends without an upgrade, the organization moves to read-only mode until a plan is chosen.</li>
-        <li>Paid plans renew on the billing cycle shown at checkout, and can be cancelled at any time from Billing settings.</li>
+        <li>
+          When a trial ends, the organization moves to read-only mode: your records stay available
+          to view and export, but creating and editing pauses. Contact us and we can extend it.
+        </li>
+        <li>
+          There is nothing to pay and nothing to cancel. We will publish paid plan terms, and tell
+          existing organizations, before any charging begins.
+        </li>
       </ul>
 
       <h2>Acceptable use</h2>

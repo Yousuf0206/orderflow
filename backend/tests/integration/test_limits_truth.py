@@ -173,3 +173,37 @@ def test_changing_trial_length_does_not_move_existing_trials(client):
         assert after == before, "an existing organization's trial end date must not shift"
     finally:
         settings.trial_length_days = original
+
+
+def test_expired_trial_message_says_what_still_works(client):
+    """The message a locked-out user meets on every blocked action.
+
+    It must not instruct an upgrade -- that's the one thing they can't do --
+    and it should say their records are still reachable, since the obvious
+    fear on being blocked is that the data is gone.
+    """
+    from src.models.subscription import Subscription
+
+    tokens = signup(client, email="expired@test.com", org_name="ExpiredOrg")
+    headers = auth_headers(tokens)
+
+    # Expire the trial directly, then confirm a write is refused and how.
+    from datetime import UTC, datetime, timedelta
+
+    from src.core.db import get_db
+    from src.main import app
+
+    db = next(app.dependency_overrides[get_db]())
+    sub = db.query(Subscription).first()
+    sub.trial_ends_at = datetime.now(UTC) - timedelta(days=1)
+    db.commit()
+
+    resp = client.post(
+        "/parties", json={"party_code": "X1", "party_name": "Blocked"}, headers=headers
+    )
+    assert resp.status_code == 403
+
+    detail = resp.json()["detail"]
+    assert "upgrade" not in detail.lower(), detail
+    assert "trial has ended" in detail.lower()
+    assert "export" in detail.lower(), "must say the records are still reachable"

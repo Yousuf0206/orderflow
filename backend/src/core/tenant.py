@@ -44,9 +44,13 @@ class TenantContext:
             .first()
         )
         if sub is not None and sub.is_read_only_locked:
+            # The message an expired-trial user meets on every blocked action,
+            # so it says what still works instead of "Upgrade to continue" --
+            # an instruction nobody can act on while paid plans are closed.
             raise HTTPException(
                 status.HTTP_403_FORBIDDEN,
-                "Organization is in read-only mode: trial expired. Upgrade to continue editing.",
+                "Your trial has ended, so creating and editing is paused. Your records are "
+                "still here to view and export — get in touch and we can extend your trial.",
             )
 
     def assert_can_add_user(self) -> None:

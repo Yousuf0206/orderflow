@@ -250,12 +250,12 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 
 **Independent Test**: Locate both legal documents from each required surface and inspect public page metadata.
 
-- [ ] T079 [P] [US6] Verify Privacy and Terms are both reachable from signup, pricing, billing, and page footers (FR-044). Billing's links at lines 115–125 sit inside the "Upgrading is subject to…" paragraph removed by T039 — **re-attach them** or the surface loses its legal links
-- [ ] T080 [P] [US6] Review both documents in `frontend/src/pages/legal/` for internal consistency, including any Stripe or paid-plan references that no longer reflect a trial-only product (FR-045)
+- [X] T079 [P] [US6] Verify Privacy and Terms are both reachable from signup, pricing, billing, and page footers (FR-044). Billing's links at lines 115–125 sit inside the "Upgrading is subject to…" paragraph removed by T039 — **re-attach them** or the surface loses its legal links
+- [X] T080 [P] [US6] Review both documents in `frontend/src/pages/legal/` for internal consistency, including any Stripe or paid-plan references that no longer reflect a trial-only product (FR-045)
 - [ ] T081 [US6] Replace the placeholder contact address where a real one exists — `email_from` defaults to `no-reply@orderflow.example` at `backend/src/core/config.py:20` (FR-045)
-- [ ] T082 [P] [US6] Verify title, description, social preview, and site icon on every public page (FR-046)
-- [ ] T083 [P] [US6] Confirm `usePageMeta` still yields a distinct title per public page after the Pricing rewrite in T038
-- [ ] T084 [US6] Verify the expired-trial state communicates clearly and does not instruct an upgrade (spec edge case; pairs with T041), and that existing data remains readable
+- [X] T082 [P] [US6] Verify title, description, social preview, and site icon on every public page (FR-046)
+- [X] T083 [P] [US6] Confirm `usePageMeta` still yields a distinct title per public page after the Pricing rewrite in T038
+- [X] T084 [US6] Verify the expired-trial state communicates clearly and does not instruct an upgrade (spec edge case; pairs with T041), and that existing data remains readable
 
 **Checkpoint**: The product reads as legitimate to a first-time evaluator.
 
