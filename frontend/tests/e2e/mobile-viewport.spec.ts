@@ -25,13 +25,24 @@ async function expectNoHorizontalScroll(page: import("@playwright/test").Page) {
   ).toBeLessThanOrEqual(overflow.clientWidth + 1);
 }
 
-async function signUp(page: import("@playwright/test").Page, unique: number) {
+/**
+ * Collision-proof per-test identifier. `Date.now() + n` only stays unique while
+ * no two tests start in the same millisecond, which is exactly what happens
+ * when the suite runs in parallel.
+ */
+function uid(): string {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+}
+
+async function signUp(page: import("@playwright/test").Page, unique: string) {
   await page.goto("/signup");
   await page.getByRole("textbox", { name: /company name/i }).fill(`Mob Co ${unique}`);
   await page.locator("#email, input[type=email]").fill(`mob-${unique}@test.com`);
   await page.locator("#password, input[type=password]").fill("password123");
   await page.getByRole("button", { name: /start free trial/i }).click();
-  await expect(page).toHaveURL(/onboarding/);
+  // Generous: the first signup of a run pays for a cold dev server and a cold
+  // backend. The assertion itself is unchanged.
+  await expect(page).toHaveURL(/onboarding/, { timeout: 30_000 });
 }
 
 test("public pages fit a phone screen", async ({ page }) => {
@@ -65,7 +76,7 @@ test("the landing page fits every common phone width, CTA included", async ({ pa
 });
 
 test("the empty dashboard fits and still names the next action", async ({ page }) => {
-  await signUp(page, Date.now());
+  await signUp(page, uid());
   await page.goto("/dashboard");
 
   await expect(page.getByText(/create your first party/i)).toBeVisible();
@@ -73,7 +84,7 @@ test("the empty dashboard fits and still names the next action", async ({ page }
 });
 
 test("error states fit a phone screen", async ({ page }) => {
-  await signUp(page, Date.now() + 1);
+  await signUp(page, uid());
 
   // Fail API calls only, so each screen lands on its error state. Scoped to
   // fetch/xhr: a bare URL pattern would also abort the page navigation, since
@@ -93,7 +104,7 @@ test("error states fit a phone screen", async ({ page }) => {
 });
 
 test("billing fits a phone screen", async ({ page }) => {
-  await signUp(page, Date.now() + 2);
+  await signUp(page, uid());
   await page.goto("/billing");
 
   await expect(page.getByText(/current plan/i)).toBeVisible();
@@ -104,7 +115,7 @@ test("billing fits a phone screen", async ({ page }) => {
 });
 
 test("the core loop is reachable on a phone", async ({ page }) => {
-  const unique = Date.now() + 3;
+  const unique = uid();
   await signUp(page, unique);
 
   await page.goto("/parties/new");
@@ -127,9 +138,19 @@ test("the core loop is reachable on a phone", async ({ page }) => {
   await expect(page.getByText(/No dispatches recorded yet/i)).toBeVisible();
   await expectNoHorizontalScroll(page);
 
-  await page.getByRole("spinbutton", { name: /qty/i }).fill("30");
+  // Check the field took the value before submitting: an empty required field
+  // makes the browser block the submit silently, and the failure then looks
+  // like a balance that never updated.
+  const qty = page.getByRole("spinbutton", { name: /qty/i });
+  await qty.fill("30");
+  await expect(qty).toHaveValue("30");
   await page.getByRole("button", { name: /add dispatch/i }).click();
 
-  await expect(page.getByText("70").first()).toBeVisible();
+  // The named figure, not any "70" on the page: the signed-in user's email can
+  // contain one, and on a phone the shell hides it -- which is how this
+  // assertion used to fail for a reason unrelated to the core loop.
+  await expect(page.locator('[data-stat="Remaining"] [data-stat-value]')).toHaveText("70", {
+    timeout: 15_000,
+  });
   await expectNoHorizontalScroll(page);
 });

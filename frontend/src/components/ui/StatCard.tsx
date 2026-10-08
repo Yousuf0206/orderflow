@@ -17,11 +17,23 @@ const TONE_STYLES: Record<NonNullable<StatCardProps["tone"]>, string> = {
 
 export default function StatCard({ label, value, icon: Icon, tone = "default", hint }: StatCardProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
+    // data-stat gives tests a stable hook for "the Remaining figure" rather
+    // than searching the page for the text "70" -- which also matches the
+    // signed-in user's email in the app shell, and silently passes against the
+    // wrong element.
+    <div
+      data-stat={label}
+      className="rounded-xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900"
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">{value}</p>
+          <p
+            data-stat-value
+            className="mt-2 text-2xl font-semibold tracking-tight text-slate-900 dark:text-white"
+          >
+            {value}
+          </p>
           {hint && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{hint}</p>}
         </div>
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TONE_STYLES[tone]}`}>
