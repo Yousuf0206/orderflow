@@ -56,11 +56,36 @@ async function expectStat(page: import("@playwright/test").Page, label: string, 
  * its whole timeout watching an unchanged figure, which says "the balance never
  * updated" when the truth is "the form was never submitted".
  */
-async function recordDispatch(page: import("@playwright/test").Page, qty: string) {
+async function recordDispatch(
+  page: import("@playwright/test").Page,
+  qty: string,
+  outcome: "accepted" | "warned" = "accepted",
+) {
   const field = page.getByRole("spinbutton", { name: /qty/i });
   await field.fill(qty);
   await expect(field).toHaveValue(qty);
   await page.getByRole("button", { name: /add dispatch/i }).click();
+
+  if (outcome === "warned") {
+    await expect(page.getByText(/exceed|more than|over/i).first()).toBeVisible();
+    return;
+  }
+
+  // Resolve the submit into one of its three real outcomes before the caller
+  // starts asserting on figures. Without this, a request that failed -- the
+  // client gives up at REQUEST_TIMEOUT_MS -- looked identical to a balance that
+  // simply had not updated, and the caller timed out watching a number that was
+  // never going to change.
+  await expect
+    .poll(
+      async () => {
+        if ((await page.getByText(/couldn't record that dispatch/i).count()) > 0) return "request failed";
+        if ((await page.getByText(/exceed|more than|over/i).count()) > 0) return "warned";
+        return (await field.inputValue()) === "" ? "accepted" : "pending";
+      },
+      { timeout: 20_000, message: `dispatch of ${qty} was not accepted` },
+    )
+    .toBe("accepted");
 }
 
 async function signUp(page: import("@playwright/test").Page, unique: string) {
@@ -168,9 +193,10 @@ test("over-dispatch is warned about and requires explicit confirmation", async (
   await expectStat(page, "Remaining", "70");
 
   // 80 against 70 remaining: must warn rather than silently accept or silently reject.
-  await recordDispatch(page, "80");
+  await recordDispatch(page, "80", "warned");
 
-  await expect(page.getByText(/exceed|more than|over/i).first()).toBeVisible();
+  // And the warning must not have quietly recorded it anyway.
+  await expectStat(page, "Remaining", "70");
 });
 
 test("a dispatch equal to the remaining balance completes without a warning", async ({ page }) => {

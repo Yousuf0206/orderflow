@@ -3,14 +3,20 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   /**
-   * The whole suite shares one dev server and one single-process backend, so
-   * past about two browsers the tests queue behind each other rather than
-   * running faster: screens sit in their loading state longer than the default
-   * 5s expect timeout and the suite fails for lack of capacity, not for lack of
-   * correctness. Wall-clock time is unchanged -- these tests are waiting on I/O,
-   * not on CPU.
+   * One worker.
+   *
+   * The suite shares a single dev server and a single-process backend. At two
+   * workers a dispatch POST was intermittently exceeding the client's 12s
+   * request deadline (REQUEST_TIMEOUT_MS), which the app correctly turns into
+   * "we couldn't record that dispatch" -- a real failure, caused by the test
+   * environment rather than by the code under test. Parallelism here buys very
+   * little anyway: the tests wait on I/O against one backend, so two workers
+   * mostly queue behind each other.
+   *
+   * This is a release-gate suite. Being slower and trustworthy beats being
+   * quicker and occasionally wrong.
    */
-  workers: 2,
+  workers: 1,
   /**
    * 10s rather than Playwright's 5s. Nearly every assertion here is a read
    * against a single-process backend shared with the other worker, and the
