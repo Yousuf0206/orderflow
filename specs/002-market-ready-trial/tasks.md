@@ -252,7 +252,13 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 
 - [X] T079 [P] [US6] Verify Privacy and Terms are both reachable from signup, pricing, billing, and page footers (FR-044). Billing's links at lines 115–125 sit inside the "Upgrading is subject to…" paragraph removed by T039 — **re-attach them** or the surface loses its legal links
 - [X] T080 [P] [US6] Review both documents in `frontend/src/pages/legal/` for internal consistency, including any Stripe or paid-plan references that no longer reflect a trial-only product (FR-045)
-- [ ] T081 [US6] Replace the placeholder contact address where a real one exists — `email_from` defaults to `no-reply@orderflow.example` at `backend/src/core/config.py:20` (FR-045)
+- [ ] T081 [US6] Replace the placeholder contact address where a real one exists — `email_from` defaults to `no-reply@orderflow.example` at `backend/src/core/config.py:20`, and `PrivacyPolicy.tsx` shows `privacy@orderflow.example` (FR-045)
+  > **BLOCKED — needs a decision, not code.** FR-045 says to replace a
+  > placeholder "where a real one is available"; no real address for this
+  > product exists in the repo, and a privacy-policy contact is a product and
+  > legal choice rather than something to invent. Supply the address and this is
+  > a two-line change (`config.py:20` and `PrivacyPolicy.tsx`). Until then the
+  > trial can still run — the address is reachable but unmonitored.
 - [X] T082 [P] [US6] Verify title, description, social preview, and site icon on every public page (FR-046)
 - [X] T083 [P] [US6] Confirm `usePageMeta` still yields a distinct title per public page after the Pricing rewrite in T038
 - [X] T084 [US6] Verify the expired-trial state communicates clearly and does not instruct an upgrade (spec edge case; pairs with T041), and that existing data remains readable
@@ -273,9 +279,22 @@ fixing them here is what keeps 14 screens from each inventing their own behaviou
 - [X] T090 Execute the core-loop e2e run 10 consecutive times on clean organizations to satisfy SC-002
 - [X] T091 Repeat quickstart Scenarios 1, 3, and 5 at a phone viewport (Principle VIII)
 - [ ] T092 Walk the corrected `docs/SMOKE_CHECKLIST.md` manually against production (your T5.1)
+  > **BLOCKED — needs production access.** Everything in the checklist that can
+  > be verified locally has been, against an isolated backend and a real
+  > browser: the core loop 50/50 across 10 repeats, failure and stall states,
+  > the paid-surface gate including a direct request, limit refusals, and the
+  > whole loop at 390px. What remains is specifically "does this hold on the
+  > deployed environment", which needs the deployment. Set
+  > `PAID_PLANS_ENABLED=false` there before walking it.
 - [X] T093 Write a short "Known limitations" note for beta users stating that paid plans are not open yet (your T5.3). `docs/` already holds a launch-limitations note from commit `0f4df3b` — update it rather than adding a second
 - [ ] T094 Tag the release `v0.2.0-trial-beta` — **only after T088–T092 all pass**. Principle XIII: if smoke fails, the build is not announced regardless of what else is ready (your T5.4)
+  > **GATED on T092.** T088–T091 pass. Tagging now would assert a gate that
+  > hasn't actually been walked against the deployed build, which is the one
+  > thing Principle XIII exists to prevent — so it is left for you rather than
+  > tagged on the strength of local runs.
 - [ ] T095 Invite the first real trial users (your T5.5). **Outward-facing and irreversible — confirm with the product owner before sending.** Gated on T094
+  > **YOURS TO SEND.** Contacting real people is not something to do on the
+  > strength of a task list. Gated on T094 regardless.
 
 **Checkpoint**: Gate passed, release tagged, beta users invited.
 
