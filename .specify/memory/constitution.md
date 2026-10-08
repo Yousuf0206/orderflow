@@ -13,11 +13,14 @@ Modified principles:
     (which still requires verified checkout under Principle IX).
 Added sections: none
 Removed sections: none
-Deferred items / TODOs:
-  - TODO(RATIFICATION_DATE): original adoption date still not supplied;
-    carried forward from v1.0.0 and still unresolved. Confirm and replace.
-  - TODO(P0_DEFINITION): RESOLVED in this amendment. Principle XIV now names
-    Phases 2–5 of specs/002-market-ready-trial/tasks.md, which are complete.
+Deferred items / TODOs: none remain.
+  - TODO(P0_DEFINITION): RESOLVED. Principle XIV now names Phases 2–5 of
+    specs/002-market-ready-trial/tasks.md, which are complete.
+  - TODO(RATIFICATION_DATE): RESOLVED. Confirmed as 2026-10-06, carried as a
+    placeholder since v1.0.0. Recorded without a version bump: it completes
+    v1.0.0's record rather than changing any rule, and bumping would imply a
+    governance change a reader would then go looking for. Consistent with
+    v1.0.0's own "Last Amended: 2026-10-06".
 Templates requiring follow-up:
   - .specify/templates/plan-template.md and spec-template.md do not
     reference principle counts or names directly; re-check during the next
@@ -224,4 +227,4 @@ They remain in force until paid billing is verified end-to-end, at which
 point relaxing or removing them requires its own amendment under the
 procedure above — they do not lapse implicitly.
 
-**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): confirm original adoption date | **Last Amended**: 2026-10-08
+**Version**: 1.1.1 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-08
