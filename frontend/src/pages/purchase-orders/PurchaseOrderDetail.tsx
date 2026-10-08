@@ -112,13 +112,22 @@ export default function PurchaseOrderDetail() {
       }
     >
       {(po) => (
-    <div className="space-y-6">
-      <PageHeader title={po.po_number} description={`${po.material} · ${po.unit} · Due ${po.due_date}`} />
+    // po-page is the hero shot: the whole screen, so a visitor sees software
+    // rather than a thin strip of numbers. po-summary inside it is the tight
+    // crop. Both are listed in contracts/image-assets.md.
+    <div className="space-y-6" data-capture="po-page">
+      {/* data-capture marks the region the landing-page screenshot script
+          crops (specs/003-landing-page-upgrade/contracts/image-assets.md).
+          Keep it on a wrapper rather than on the grid, so the hero shot
+          includes the PO number, material, unit and due date. */}
+      <div data-capture="po-summary" className="space-y-6">
+        <PageHeader title={po.po_number} description={`${po.material} · ${po.unit} · Due ${po.due_date}`} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Ordered" value={numberFmt.format(po.ordered_qty)} icon={PackageOpen} />
-        <StatCard label="Dispatched" value={numberFmt.format(po.total_dispatched)} icon={Truck} tone="success" />
-        <StatCard label="Remaining" value={numberFmt.format(po.remaining_balance)} icon={Wallet} tone="warning" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="Ordered" value={numberFmt.format(po.ordered_qty)} icon={PackageOpen} />
+          <StatCard label="Dispatched" value={numberFmt.format(po.total_dispatched)} icon={Truck} tone="success" />
+          <StatCard label="Remaining" value={numberFmt.format(po.remaining_balance)} icon={Wallet} tone="warning" />
+        </div>
       </div>
 
       <Card>
@@ -189,6 +198,7 @@ export default function PurchaseOrderDetail() {
         </div>
       </Card>
 
+      <div data-capture="dispatch-history">
       <Card className="overflow-x-auto">
         <CardHeader>
           <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Dispatch History</h2>
@@ -237,6 +247,7 @@ export default function PurchaseOrderDetail() {
           )}
         </QueryState>
       </Card>
+      </div>
     </div>
       )}
     </QueryState>

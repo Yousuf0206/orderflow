@@ -5,6 +5,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import Billing from "../../src/pages/billing/Billing";
+import Landing from "../../src/pages/marketing/Landing";
 import Pricing from "../../src/pages/marketing/Pricing";
 
 /**
@@ -97,6 +98,43 @@ describe("pricing page while paid plans are gated", () => {
     renderPage(<Pricing />);
     await waitFor(() => expect(screen.getByText(/terms of service/i)).toBeInTheDocument());
     expect(screen.getByText(/privacy policy/i)).toBeInTheDocument();
+  });
+});
+
+describe("landing page while paid plans are gated", () => {
+  beforeEach(() => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(json(GATED_PLANS));
+  });
+
+  it("offers no link that would begin a purchase", async () => {
+    renderPage(<Landing />);
+    await waitFor(() => expect(screen.getAllByRole("link").length).toBeGreaterThan(0));
+
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.getAttribute("href") ?? "").not.toMatch(/checkout|upgrade|subscribe|billing/i);
+      expect(link.textContent ?? "").not.toMatch(/buy|subscribe|upgrade/i);
+    }
+    for (const button of screen.queryAllByRole("button")) {
+      expect(button.textContent ?? "").not.toMatch(/choose|buy|subscribe|upgrade/i);
+    }
+  });
+
+  it("names no plan tier and no price", async () => {
+    renderPage(<Landing />);
+    await waitFor(() => expect(screen.getAllByRole("link").length).toBeGreaterThan(0));
+
+    const text = document.body.textContent ?? "";
+    for (const price of ["$29", "$79", "$199", "/month", "per month"]) {
+      expect(text).not.toContain(price);
+    }
+  });
+
+  it("points its one primary invitation at the trial", async () => {
+    renderPage(<Landing />);
+    const trialLinks = await screen.findAllByRole("link", { name: /start (your )?free trial/i });
+    for (const link of trialLinks) {
+      expect(link.getAttribute("href")).toBe("/signup");
+    }
   });
 });
 

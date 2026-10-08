@@ -41,6 +41,29 @@ test("public pages fit a phone screen", async ({ page }) => {
   }
 });
 
+/**
+ * The landing page carries wide product screenshots, which is exactly the kind
+ * of content that overflows at the narrow end. 390px is the design target; 320
+ * is the narrowest phone still in use and 430 the widest common one
+ * (spec FR-024, SC-004).
+ */
+test("the landing page fits every common phone width, CTA included", async ({ page }) => {
+  for (const width of [320, 360, 390, 430]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto("/");
+    await expectNoHorizontalScroll(page);
+
+    const cta = page.getByRole("link", { name: /start (your )?free trial/i }).first();
+    await expect(cta).toBeVisible();
+    const box = await cta.boundingBox();
+    expect(box, `no CTA box at ${width}px`).not.toBeNull();
+    // Reachable by scrolling down only: the button must sit inside the
+    // viewport's width, not off to one side of it.
+    expect(box!.x, `CTA starts off-screen at ${width}px`).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width, `CTA overflows the viewport at ${width}px`).toBeLessThanOrEqual(width + 1);
+  }
+});
+
 test("the empty dashboard fits and still names the next action", async ({ page }) => {
   await signUp(page, Date.now());
   await page.goto("/dashboard");

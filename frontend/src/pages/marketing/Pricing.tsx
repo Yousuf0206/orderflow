@@ -1,8 +1,11 @@
 import { Check } from "lucide-react";
 import { Link } from "react-router-dom";
 
+import SiteFooter from "../../components/marketing/SiteFooter";
+import SiteHeader from "../../components/marketing/SiteHeader";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import landingContent from "../../content/landing";
 import { usePageMeta } from "../../hooks/usePageMeta";
 import { usePublicPlans } from "../../hooks/useTrialInfo";
 import { isAuthenticated } from "../../services/auth";
@@ -39,14 +42,15 @@ export default function Pricing() {
 
   return (
     <div className="min-h-dvh bg-white">
-      <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 p-4">
-        <Link to="/" className="text-lg font-semibold text-slate-900">
-          OrderFlow
-        </Link>
-        <Link to={ctaTo}>
-          <Button>{loggedIn ? "Go to billing" : "Start free trial"}</Button>
-        </Link>
-      </header>
+      {/* Shared with the landing page so the two cannot drift (FR-011, FR-012).
+          The primary action is overridden for a signed-in visitor, for whom
+          "Start free trial" would be the wrong invitation. */}
+      <SiteHeader
+        content={landingContent.nav}
+        primaryAction={
+          loggedIn ? { label: "Go to billing", to: "/billing", emphasis: "primary" } : undefined
+        }
+      />
 
       <main className="mx-auto max-w-2xl px-4 py-12">
         <h1 className="text-center text-2xl font-bold text-slate-900 sm:text-3xl">
@@ -118,6 +122,8 @@ export default function Pricing() {
           .
         </p>
       </main>
+
+      <SiteFooter content={landingContent.footer} />
     </div>
   );
 }
