@@ -310,10 +310,18 @@ Recorded for traceability. Blocked by constitution Principle XIV until the P0 ga
 - Aligning paid plan cards with enforced limits
 - Customer portal
 
-Note that Principle XIV's `TODO(P0_DEFINITION)` still has no authoritative
-checklist. **Phases 2–5 of this file are the natural candidate** — if you agree,
-amend the constitution to link here, so the gate becomes objectively testable
-rather than a judgement call.
+**The gate is now defined here.** Constitution v1.1.1 names Phases 2–5 of this
+file as the launch-readiness P0 items, so Principle XIV is decided by evidence
+rather than judgement. Those phases are complete, which means paid work may now
+be *scoped* — it does not mean paid plans may be switched on. That additionally
+requires checkout verified end to end (Principle IX) and a separately authorized
+release step (Principle XIV).
+
+The constitution also restates the gate in substance, so it survives this file
+being moved or renamed: the core loop works in the UI every time; no screen can
+hang or claim something it never loaded; no reachable control starts a purchase
+that cannot finish; every number shown is the number enforced. A later feature
+may raise that bar but may not lower it.
 
 ---
 

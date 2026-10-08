@@ -1,35 +1,34 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 1.1.0 (MINOR: six new principles + new workflow
-  section; no existing principle removed or redefined)
+Version change: 1.1.0 → 1.1.1 (PATCH: supplies a definition that was already
+  referenced; no principle added, removed, or redefined)
 Modified principles:
-  - II. Remaining Balance is Sacred — unchanged in substance; new
-    Principle X cross-references it to extend the guarantee to the UI
-    surface (previously only a data-layer guarantee).
-Added sections:
-  - Core Principles IX–XIV:
-      IX.   Trial-First Positioning
-      X.    The Core Loop Must Be Boringly Reliable
-      XI.   Truth Over Marketing
-      XII.  No Silent Failures
-      XIII. Smoke Test Before Every Production Deploy
-      XIV.  Paid Work Is Gated
-  - Launch Gates & Release Workflow (fills the previously-omitted
-    [SECTION_3_NAME] slot from the constitution template)
-  - Mission statement under the document title
+  - XIV. Paid Work Is Gated — the gate's content is unchanged. The principle
+    already gated paid work on "the launch-readiness P0 items"; this names
+    which items those are, so the gate is decided by evidence instead of
+    judgement. Adds a substance restatement so the gate survives the
+    referenced file being moved or renamed, and clarifies that clearing the
+    gate permits paid work to be scoped rather than enabling paid plans
+    (which still requires verified checkout under Principle IX).
+Added sections: none
 Removed sections: none
 Deferred items / TODOs:
   - TODO(RATIFICATION_DATE): original adoption date still not supplied;
-    carried forward from v1.0.0 and unresolved. Confirm and replace.
-  - TODO(P0_DEFINITION): Principle XIV gates paid work on "this kit's P0
-    items". The P0 list lives outside this constitution; link or inline the
-    authoritative P0 checklist so the gate is objectively testable.
+    carried forward from v1.0.0 and still unresolved. Confirm and replace.
+  - TODO(P0_DEFINITION): RESOLVED in this amendment. Principle XIV now names
+    Phases 2–5 of specs/002-market-ready-trial/tasks.md, which are complete.
 Templates requiring follow-up:
   - .specify/templates/plan-template.md and spec-template.md do not
     reference principle counts or names directly; re-check during the next
     /speckit-plan run for alignment with Principles IX–XIV, particularly
     the smoke-test gate in Principle XIII.
+Note on the referenced file:
+  - Principle XIV now points at a feature-scoped path. That is deliberate --
+    it is where the evidence lives -- and the accompanying substance
+    restatement is what keeps the gate meaningful if the path changes. A
+    future amendment that supersedes those phases should update the pointer
+    and may raise the bar, but may not lower it.
 -->
 
 # OrderFlow Constitution
@@ -150,9 +149,29 @@ which is explicitly in scope and encouraged.
 **Rationale:** half-built billing is the most expensive kind of unfinished
 work, because it fails in front of a user holding a credit card.
 
-TODO(P0_DEFINITION): the authoritative P0 checklist that releases this gate
-lives outside this constitution; link or inline it so this principle is
-objectively testable.
+**The P0 gate.** The launch-readiness P0 items are Phases 2 through 5 of
+`specs/002-market-ready-trial/tasks.md`:
+
+- Phase 2 — Foundational: a bounded request deadline, the shared query-state
+  contract, the server-owned paid-plans gate, and the billing response that
+  carries limits and usage.
+- Phase 3 — User Story 1: the core loop completes through the user interface
+  and no screen can be left loading.
+- Phase 4 — User Story 2: no reachable path to a purchase that cannot
+  complete, verified by direct request as well as through the UI.
+- Phase 5 — User Story 3: every limit displayed is the limit enforced.
+
+In substance the gate asks four things, and they remain the test even if that
+file is moved, renamed, or superseded: **the core loop works in the UI every
+time; no screen can hang or claim something it never loaded; no reachable
+control starts a purchase that cannot finish; and every number shown to a user
+is the number the server enforces.** A later feature may restate these, but may
+not lower them.
+
+Releasing the gate is a separate, explicitly authorized step. Completing these
+phases permits paid work to be *scoped*; it does not by itself enable paid
+plans, which additionally requires checkout verified end to end per Principle
+IX.
 
 ## Constraints
 
@@ -205,4 +224,4 @@ They remain in force until paid billing is verified end-to-end, at which
 point relaxing or removing them requires its own amendment under the
 procedure above — they do not lapse implicitly.
 
-**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): confirm original adoption date | **Last Amended**: 2026-10-08
+**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): confirm original adoption date | **Last Amended**: 2026-10-08
