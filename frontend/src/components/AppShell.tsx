@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { describeApiError } from "../services/apiClient";
 import { getMe, logout } from "../services/auth";
 import Notifications from "./Notifications";
 import ThemeToggle from "./ui/ThemeToggle";
@@ -86,9 +87,15 @@ function SidebarContent({
       </nav>
       <div className="border-t border-slate-200 p-2 dark:border-slate-800">
         {userEmail && (
-          <p className="truncate px-3 pb-1 text-xs text-slate-400 dark:text-slate-500" title={userEmail}>
-            {userEmail}
-          </p>
+          <div className="px-3 pb-1">
+            <p className="truncate text-xs text-slate-400 dark:text-slate-500" title={userEmail}>
+              {userEmail}
+            </p>
+            {/* Role was only ever used to gate nav items. Showing it means a
+                user can tell "I'm a Viewer" from "this is broken" when an
+                action isn't available to them. */}
+            {role && <p className="text-xs capitalize text-slate-400 dark:text-slate-600">{role}</p>}
+          </div>
         )}
         <button
           onClick={logout}
@@ -104,7 +111,12 @@ function SidebarContent({
 
 export default function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const { data: me } = useQuery({ queryKey: ["me"], queryFn: getMe, staleTime: 5 * 60 * 1000 });
+  const {
+    data: me,
+    isError: meFailed,
+    error: meError,
+    refetch: refetchMe,
+  } = useQuery({ queryKey: ["me"], queryFn: getMe, staleTime: 5 * 60 * 1000 });
 
   return (
     <div className="flex min-h-dvh bg-slate-50 dark:bg-slate-950">
@@ -156,6 +168,27 @@ export default function AppShell() {
             <Notifications />
           </div>
         </header>
+        {/* Deliberately a banner, not a full-page error: the page below may well
+            have loaded fine. But it can't be silent either -- without the role
+            from /auth/me, an owner loses Team and Billing from the nav, which
+            reads as "my permissions were taken away" rather than "this didn't
+            load". */}
+        {meFailed && (
+          <div
+            role="alert"
+            className="flex flex-wrap items-center gap-2 border-b border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300 md:px-6"
+          >
+            <span>
+              {describeApiError(
+                meError,
+                "We couldn't load your account details, so some menu items may be missing.",
+              )}
+            </span>
+            <button type="button" onClick={() => refetchMe()} className="font-medium underline">
+              Try again
+            </button>
+          </div>
+        )}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           <div className="mx-auto max-w-7xl">
             <Outlet />

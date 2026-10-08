@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Bell, Clock } from "lucide-react";
 import { useState } from "react";
 
-import { api } from "../services/apiClient";
+import { api, describeApiError } from "../services/apiClient";
 import EmptyState from "./ui/EmptyState";
 
 interface NotificationItem {
@@ -16,7 +16,7 @@ interface NotificationItem {
 export default function Notifications() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  const { data } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => api.get<NotificationItem[]>("/notifications"),
     refetchInterval: 60_000,
@@ -51,7 +51,23 @@ export default function Notifications() {
               Notifications
             </div>
             <div className="max-h-96 overflow-y-auto">
-              {(data ?? []).length === 0 && (
+              {/* "You're all caught up" on a failed fetch is a false
+                  reassurance -- there may be overdue orders we simply never
+                  retrieved, and this panel is the only place they surface. */}
+              {isError && (
+                <div className="px-4 py-3 text-sm">
+                  <p role="alert" className="text-red-700 dark:text-red-400">
+                    {describeApiError(error, "We couldn't load your notifications.")}
+                  </p>
+                  <button type="button" onClick={() => refetch()} className="mt-1 font-medium underline">
+                    Try again
+                  </button>
+                </div>
+              )}
+              {!isError && isLoading && (
+                <p className="px-4 py-3 text-sm text-slate-400">Checking for updates…</p>
+              )}
+              {!isError && !isLoading && (data ?? []).length === 0 && (
                 <EmptyState icon={Bell} title="You're all caught up" description="No notifications yet." />
               )}
               {(data ?? []).map((n) => {

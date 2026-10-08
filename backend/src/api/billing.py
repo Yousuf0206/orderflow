@@ -4,7 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from src.core.config import settings
 from src.core.security import require_role
 from src.core.tenant import TenantContext, get_tenant_context
-from src.services.billing import apply_plan, get_or_create_subscription
+from src.services.billing import (
+    apply_plan,
+    count_active_pos,
+    count_users,
+    get_or_create_subscription,
+)
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
@@ -26,6 +31,16 @@ def get_billing(tenant: TenantContext = Depends(get_tenant_context), _ = Depends
         "is_read_only_locked": sub.is_read_only_locked,
         "max_users": sub.max_users,
         "max_active_pos": sub.max_active_pos,
+        # Usage counted by the same helpers enforcement uses, so the figures on
+        # Billing can't drift from the point where creates actually get refused.
+        "current_users": count_users(tenant.db, tenant.organization_id),
+        "current_active_pos": count_active_pos(tenant.db, tenant.organization_id),
+        "trial_length_days": settings.trial_length_days,
+        "paid_plans_enabled": settings.paid_plans_enabled,
+        # Whether billing management could succeed at all -- a trial org has no
+        # Stripe customer, so the portal would always fail for it. The boolean
+        # is all the UI needs; the customer id itself stays server-side.
+        "has_billing_account": bool(sub.stripe_customer_id),
     }
 
 
@@ -35,12 +50,21 @@ def create_checkout_session(
     tenant: TenantContext = Depends(get_tenant_context),
     _ = Depends(require_role("owner")),
 ) -> dict:
+    # First, before any vendor lookup: a hidden button still leaves this
+    # endpoint reachable by direct request, and the gate must not depend on
+    # Stripe happening to be unconfigured -- otherwise adding a key would
+    # silently reopen a checkout nobody has verified.
+    if not settings.paid_plans_enabled:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Paid plans are not available yet.")
     if plan_tier not in PRICE_IDS or not PRICE_IDS[plan_tier]:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Unknown or unconfigured plan")
     if not settings.stripe_secret_key:
+        # Reachable only once paid plans are deliberately enabled, so this is
+        # an operator-facing misconfiguration rather than something a trial
+        # user can trip over.
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            "Stripe is not configured on this deployment (set STRIPE_SECRET_KEY).",
+            "Checkout is temporarily unavailable. Please try again later.",
         )
     sub = get_or_create_subscription(tenant.db, tenant.organization_id)
     session = stripe.checkout.Session.create(
@@ -59,9 +83,15 @@ def create_portal_session(
     tenant: TenantContext = Depends(get_tenant_context),
     _ = Depends(require_role("owner")),
 ) -> dict:
+    if not settings.paid_plans_enabled:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Billing management is not available yet.")
     sub = get_or_create_subscription(tenant.db, tenant.organization_id)
     if not sub.stripe_customer_id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No Stripe customer on file yet")
+        # Doesn't tell the user to go and upgrade: while paid plans are gated
+        # that's an instruction they can't act on.
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "No billing account on file for this organization."
+        )
     session = stripe.billing_portal.Session.create(
         customer=sub.stripe_customer_id,
         return_url=f"{settings.frontend_base_url}/billing",

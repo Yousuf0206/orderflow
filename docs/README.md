@@ -87,7 +87,29 @@ tests+build, and a Docker build sanity check on every push/PR.
   autogenerate against) — review it against a real Postgres instance, and use
   `alembic revision --autogenerate` for every migration after this one.
 
-## Known limitations (launch hardening, 2026-10-07)
+## For beta users: what's open and what isn't (2026-10-08)
+
+**OrderFlow is a free trial. There are no paid plans yet.** You cannot buy
+anything, there's nothing to cancel, and we don't ask for or store card details.
+Every paid path — checkout, plan upgrades, the billing portal — is switched off at
+the server, not just hidden, and will stay off until checkout is verified end to
+end. We'll tell existing organizations before that changes.
+
+What this means day to day:
+
+- **Trial limits are 3 users and 25 purchase orders.** The figures on your Billing
+  page are the ones the server actually enforces. Note that the purchase-order
+  limit counts every order you haven't deleted, including fully dispatched ones —
+  completing an order doesn't free up room.
+- **When your trial ends, the organization becomes read-only.** Your records stay
+  available to view and export; creating and editing pauses. Get in touch and we
+  can extend it.
+- **Team invitations need the link.** Invite emails only send once SMTP is
+  configured on the deployment; until then an invited member shows as pending and
+  an owner needs to pass on the accept link.
+- **Reports export to CSV, Excel, and PDF.** All three work.
+
+## Known limitations (launch hardening, 2026-10-07; revised 2026-10-08)
 
 What's genuinely launch-ready vs. still trial-grade after the hardening pass
 (see `api-examples.md` and `SMOKE_CHECKLIST.md` for what's been verified):
@@ -100,10 +122,15 @@ What's genuinely launch-ready vs. still trial-grade after the hardening pass
   all memberships (including pending invites); `max_active_pos` counts
   non-deleted POs. There's no grace period or soft warning before the hard 403 —
   the first request past the limit is rejected outright.
-- **No automated billing reconciliation beyond the Stripe webhook.** If a webhook
-  delivery is missed (Stripe retries failed webhooks, but this isn't polled or
-  reconciled on a schedule), a subscription could drift out of sync with Stripe's
-  actual state until the next webhook event arrives.
+- **Paid billing is switched off, not finished.** `PAID_PLANS_ENABLED` defaults to
+  false: `GET /plans` returns no paid tiers, and checkout and portal sessions are
+  refused with 403 before any Stripe call. The Stripe code and the webhook handler
+  still exist and are untested end to end — enabling the flag is a separate,
+  deliberately gated piece of work, not a config toggle.
+- **No automated billing reconciliation beyond the Stripe webhook.** Moot while
+  paid plans are gated, but unresolved: if a webhook delivery is missed (Stripe
+  retries, but this isn't polled or reconciled on a schedule), a subscription
+  could drift out of sync with Stripe's actual state.
 - **Due Soon / Overdue notifications require an external scheduler** (see above) —
   nothing pages anyone if that script isn't scheduled.
 - **No file/logo upload** — `Organization.logo_url` exists as a field but there's no

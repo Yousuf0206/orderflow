@@ -1,53 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-
 import { Link } from "react-router-dom";
 
 import AccessDenied from "../../components/ui/AccessDenied";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import PageHeader from "../../components/ui/PageHeader";
+import QueryState from "../../components/ui/QueryState";
 import { Skeleton } from "../../components/ui/Skeleton";
-import { api, ApiError } from "../../services/apiClient";
-
-interface BillingInfo {
-  plan_tier: string;
-  trial_ends_at: string | null;
-  is_read_only_locked: boolean;
-  max_users: number;
-  max_active_pos: number;
-}
-
-const PLANS = ["starter", "business", "pro"];
+import { useTrialInfo, type BillingInfo } from "../../hooks/useTrialInfo";
+import { api, ApiError, describeApiError } from "../../services/apiClient";
 
 export default function Billing() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["billing"],
-    queryFn: () => api.get<BillingInfo>("/billing"),
-    retry: (failureCount, err) => !(err instanceof ApiError && err.status === 403) && failureCount < 3,
-  });
-  const [notice, setNotice] = useState<string | null>(null);
+  const { data, isLoading, isError, error, refetch } = useTrialInfo();
 
-  async function upgrade(plan: string) {
-    setNotice(null);
-    try {
-      const resp = await api.post<{ checkout_url: string }>("/billing/checkout-session", { plan_tier: plan });
-      window.location.href = resp.checkout_url;
-    } catch {
-      setNotice("Stripe is not configured on this deployment yet. Set STRIPE_SECRET_KEY and price IDs on the backend.");
-    }
-  }
-
-  async function openPortal() {
-    setNotice(null);
-    try {
-      const resp = await api.post<{ portal_url: string }>("/billing/portal-session");
-      window.location.href = resp.portal_url;
-    } catch {
-      setNotice("No billing account on file yet — upgrade to a paid plan first.");
-    }
-  }
-
+  // A 403 is an answer, not a failure: this viewer isn't an owner. Checked
+  // before the generic error state so they get the real reason.
   if (error instanceof ApiError && error.status === 403) {
     return (
       <div className="max-w-2xl space-y-4">
@@ -57,66 +24,31 @@ export default function Billing() {
     );
   }
 
-  if (isLoading || !data) {
-    return (
-      <div className="max-w-2xl space-y-4">
-        <PageHeader title="Billing" />
-        <Skeleton className="h-28" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-          <Skeleton className="h-32" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-2xl space-y-4">
-      <PageHeader title="Billing" description="Manage your plan and payment details." />
+      <PageHeader title="Billing" description="Your plan and usage." />
+      <QueryState
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        data={data}
+        refetch={refetch}
+        errorFallback="We couldn't load your billing details. Your account is unaffected — this is a display problem."
+        loading={
+          <div className="space-y-4">
+            <Skeleton className="h-28" />
+            <Skeleton className="h-20" />
+          </div>
+        }
+      >
+        {(info) => <BillingDetails info={info} />}
+      </QueryState>
 
-      {notice && (
-        <p role="alert" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-          {notice}
-        </p>
-      )}
-
-      {data.is_read_only_locked && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
-          Your trial has ended. The organization is in read-only mode — upgrade to resume creating and editing records.
-        </div>
-      )}
-
-      <Card className="space-y-2 p-5">
-        <p className="text-sm text-slate-700 dark:text-slate-200">
-          Current plan: <span className="font-medium capitalize text-slate-900 dark:text-white">{data.plan_tier}</span>
-        </p>
-        {data.trial_ends_at && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Trial ends: {new Date(data.trial_ends_at).toLocaleDateString()}
-          </p>
-        )}
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Limits: {data.max_users} users, {data.max_active_pos} active POs
-        </p>
-        <Button variant="secondary" onClick={openPortal}>
-          Manage billing
-        </Button>
-      </Card>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {PLANS.map((plan) => (
-          <Card key={plan} className="space-y-3 p-5 text-center">
-            <h2 className="font-medium capitalize text-slate-900 dark:text-white">{plan}</h2>
-            <Button onClick={() => upgrade(plan)} className="w-full">
-              Choose {plan}
-            </Button>
-          </Card>
-        ))}
-      </div>
-
+      {/* Kept outside QueryState: these were previously attached to an
+          "Upgrading is subject to..." note, and removing the upgrade path
+          would have quietly taken the legal links off this page with it. */}
       <p className="text-center text-xs text-slate-400 dark:text-slate-500">
-        Upgrading is subject to our{" "}
+        Your use of OrderFlow is subject to our{" "}
         <Link to="/terms" className="underline hover:text-slate-600 dark:hover:text-slate-300">
           Terms of Service
         </Link>{" "}
@@ -127,5 +59,116 @@ export default function Billing() {
         .
       </p>
     </div>
+  );
+}
+
+/**
+ * Only rendered when the server says a billing account exists and paid plans
+ * are open. Unreachable during the trial-only beta, but kept honest rather
+ * than stubbed, so enabling the flag doesn't surface a dead control.
+ */
+function ManageBillingButton() {
+  const [failed, setFailed] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+
+  async function openPortal() {
+    setFailed(null);
+    setOpening(true);
+    try {
+      const resp = await api.post<{ portal_url: string }>("/billing/portal-session");
+      window.location.href = resp.portal_url;
+    } catch (err) {
+      setFailed(describeApiError(err, "We couldn't open billing management just now."));
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2 pt-1">
+      <Button variant="secondary" onClick={openPortal} disabled={opening}>
+        {opening ? "Opening…" : "Manage billing"}
+      </Button>
+      {failed && (
+        <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+          {failed}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function BillingDetails({ info }: { info: BillingInfo }) {
+  const onTrial = info.plan_tier === "trial";
+
+  return (
+    <>
+      {info.is_read_only_locked && (
+        <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
+          {/* Deliberately does not say "upgrade to resume": while paid plans
+              are closed that is an instruction nobody can act on, and it
+              would be the main thing an expired-trial user is told. */}
+          <p className="font-medium">Your trial has ended.</p>
+          <p className="mt-1">
+            Your records are all still here and you can keep viewing and exporting them. Creating
+            and editing is paused. Get in touch and we&rsquo;ll extend your trial — paid plans
+            aren&rsquo;t open yet.
+          </p>
+        </div>
+      )}
+
+      <Card className="space-y-3 p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-700 dark:text-slate-200">Current plan</span>
+          <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-sm font-medium capitalize text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
+            {info.plan_tier}
+          </span>
+          {onTrial && !info.paid_plans_enabled && (
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              Paid plans coming soon
+            </span>
+          )}
+        </div>
+
+        {info.trial_ends_at && !info.is_read_only_locked && (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Trial ends {new Date(info.trial_ends_at).toLocaleDateString()}
+          </p>
+        )}
+
+        {/* Both figures come from the server for this organization, so what is
+            shown here is what creates are actually refused at. */}
+        <dl className="grid grid-cols-2 gap-3 border-t border-slate-200 pt-3 dark:border-slate-800">
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-slate-400">Users</dt>
+            <dd className="text-sm font-medium text-slate-900 dark:text-white">
+              {info.current_users} of {info.max_users}
+            </dd>
+          </div>
+          <div>
+            {/* "Purchase orders", not "Active POs": the enforced count covers
+                every order that hasn't been deleted, fully dispatched ones
+                included. Labelling it "active" would promise that completed
+                orders free up room, which they don't. */}
+            <dt className="text-xs uppercase tracking-wide text-slate-400">Purchase orders</dt>
+            <dd className="text-sm font-medium text-slate-900 dark:text-white">
+              {info.current_active_pos} of {info.max_active_pos}
+            </dd>
+          </div>
+        </dl>
+
+        {/* Offered only when it could actually succeed. A trial organization
+            has no payment account, so for the whole beta audience this is
+            absent rather than present-and-failing. */}
+        {info.paid_plans_enabled && info.has_billing_account && <ManageBillingButton />}
+      </Card>
+
+      {!info.paid_plans_enabled && (
+        <p className="text-sm text-slate-500 dark:text-slate-400">
+          OrderFlow is in free trial while we get the core workflow right. There&rsquo;s nothing to
+          buy yet — we&rsquo;ll tell you well before that changes.
+        </p>
+      )}
+    </>
   );
 }

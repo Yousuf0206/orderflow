@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
+import { usePageMeta } from "../../hooks/usePageMeta";
+
 export default function LegalPage({
   title,
   updated,
@@ -10,6 +12,10 @@ export default function LegalPage({
   updated: string;
   children: ReactNode;
 }) {
+  // Both legal pages are public and were the only ones without a distinct
+  // title. Done here rather than in each page, since there is one wrapper.
+  usePageMeta(title, `${title} for OrderFlow — purchase order and dispatch tracking.`);
+
   return (
     <div className="min-h-dvh bg-white">
       <header className="mx-auto flex max-w-3xl items-center justify-between px-4 py-6">

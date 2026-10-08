@@ -16,7 +16,10 @@ export default function PrivacyPolicy() {
           Business records you enter: parties, purchase orders, dispatches, and the audit log of
           actions taken in your organization.
         </li>
-        <li>Billing information, handled directly by our payment processor (Stripe) — we do not store card numbers.</li>
+        <li>
+          No payment information. OrderFlow is free-trial only at the moment, so we don't ask for
+          or hold card details.
+        </li>
         <li>Basic technical data (IP address, browser) for security and abuse prevention.</li>
       </ul>
 
@@ -36,8 +39,8 @@ export default function PrivacyPolicy() {
       <h2>Sharing</h2>
       <p>
         We do not sell your data. We share data with service providers only as needed to run the
-        product (for example, Stripe for billing and our email delivery provider for transactional
-        email).
+        product — currently our email delivery provider, for transactional email. We'll update this
+        page before adding any other processor.
       </p>
 
       <h2>Your choices</h2>

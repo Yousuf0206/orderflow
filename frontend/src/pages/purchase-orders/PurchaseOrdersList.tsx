@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import EmptyState from "../../components/ui/EmptyState";
+import QueryState from "../../components/ui/QueryState";
 import PageHeader from "../../components/ui/PageHeader";
 import { TableSkeleton } from "../../components/ui/Skeleton";
 import { StatusBadge } from "../../components/ui/Badge";
@@ -24,7 +25,7 @@ const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 })
 
 export default function PurchaseOrdersList() {
   const [status, setStatus] = useState("");
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["purchase-orders", status],
     queryFn: () => api.get<PurchaseOrder[]>(`/purchase-orders${status ? `?status=${status}` : ""}`),
   });
@@ -56,22 +57,40 @@ export default function PurchaseOrdersList() {
       </select>
 
       <Card className="overflow-x-auto">
-        {isLoading ? (
-          <TableSkeleton />
-        ) : (data ?? []).length === 0 ? (
-          <EmptyState
-            icon={Package}
-            title="No purchase orders yet"
-            description="Create your first PO to start tracking dispatches and remaining balance."
-            action={
-              <Link to="/purchase-orders/new">
-                <Button>
-                  <Plus size={16} /> New Purchase Order
-                </Button>
-              </Link>
-            }
-          />
-        ) : (
+        {/* `data ?? []` used to show "No purchase orders yet" when the fetch
+            had failed, which reads as "your orders are gone" rather than "we
+            couldn't load them". */}
+        <QueryState
+          isLoading={isLoading}
+          isError={isError}
+          error={error}
+          data={data}
+          refetch={refetch}
+          errorFallback="We couldn't load your purchase orders. Your data is safe — this is a display problem."
+          loading={<TableSkeleton />}
+          isEmpty={(rows) => rows.length === 0}
+          empty={
+            <EmptyState
+              icon={Package}
+              title={status ? "No purchase orders with that status" : "No purchase orders yet"}
+              description={
+                status
+                  ? "Try a different status filter."
+                  : "Create your first PO to start tracking dispatches and remaining balance."
+              }
+              action={
+                status ? undefined : (
+                  <Link to="/purchase-orders/new">
+                    <Button>
+                      <Plus size={16} /> New Purchase Order
+                    </Button>
+                  </Link>
+                )
+              }
+            />
+          }
+        >
+          {(rows) => (
           <table className="w-full min-w-[600px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
@@ -83,7 +102,7 @@ export default function PurchaseOrdersList() {
               </tr>
             </thead>
             <tbody>
-              {(data ?? []).map((po) => (
+              {rows.map((po) => (
                 <tr key={po.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50">
                   <td className="px-5 py-3">
                     <Link to={`/purchase-orders/${po.id}`} className="font-medium text-slate-900 hover:text-brand-600 hover:underline dark:text-white">
@@ -100,7 +119,8 @@ export default function PurchaseOrdersList() {
               ))}
             </tbody>
           </table>
-        )}
+          )}
+        </QueryState>
       </Card>
     </div>
   );

@@ -8,6 +8,7 @@ something to show immediately.
 
 from datetime import UTC, date, datetime, timedelta
 
+from src.core.config import settings
 from src.core.db import SessionLocal
 from src.core.security import hash_password
 from src.models.dispatch import Dispatch
@@ -47,7 +48,10 @@ def run() -> None:
             Subscription(
                 organization_id=org.id,
                 plan_tier="trial",
-                trial_ends_at=datetime.now(UTC) + timedelta(days=14),
+                # Reads the same setting signup uses. Hardcoding 14 here meant
+                # a deployment that changed the trial length got seeded orgs on
+                # a different trial from the ones real signups received.
+                trial_ends_at=datetime.now(UTC) + timedelta(days=settings.trial_length_days),
                 max_users=PLAN_LIMITS["trial"]["max_users"],
                 max_active_pos=PLAN_LIMITS["trial"]["max_active_pos"],
             )

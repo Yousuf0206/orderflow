@@ -6,8 +6,9 @@ import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { FormField, Input, Select } from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
+import QueryState from "../../components/ui/QueryState";
 import { TableSkeleton } from "../../components/ui/Skeleton";
-import { api, ApiError } from "../../services/apiClient";
+import { api, ApiError, describeApiError } from "../../services/apiClient";
 import { getMe } from "../../services/auth";
 
 interface Member {
@@ -24,10 +25,18 @@ export default function TeamMembers() {
   const queryClient = useQueryClient();
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: getMe, staleTime: 5 * 60 * 1000 });
   const isOwner = me?.role === "owner";
-  const { data, isLoading, error: membersError } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError: membersFailed,
+    error: membersError,
+    refetch: refetchMembers,
+  } = useQuery({
     queryKey: ["members"],
     queryFn: () => api.get<Member[]>("/org/members"),
-    retry: (failureCount, err) => !(err instanceof ApiError && err.status === 403) && failureCount < 3,
+    // No retry, matching the app-wide default: a 403 here means "not allowed"
+    // and never changes, and anything else now has a visible Retry control.
+    retry: false,
   });
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("staff");
@@ -42,21 +51,37 @@ export default function TeamMembers() {
       await api.post("/org/members/invite", { email, role });
       setEmail("");
       queryClient.invalidateQueries({ queryKey: ["members"] });
-    } catch {
-      setError("Could not send invite (already a member, or invalid role?).");
+    } catch (err) {
+      // Shows the server's actual reason. The old message guessed -- "already
+      // a member, or invalid role?" -- so hitting the user limit reported a
+      // cause that wasn't true and gave no hint what would help.
+      setError(describeApiError(err, "Could not send that invite. Please try again."));
     } finally {
       setInviting(false);
     }
   }
 
+  // Both of these previously had no error handling at all: a refusal (the
+  // last-owner guard, say) left the row unchanged with nothing said, which
+  // reads as a dead button rather than a rule.
   async function changeRole(id: string, newRole: string) {
-    await api.patch(`/org/members/${id}`, { role: newRole });
-    queryClient.invalidateQueries({ queryKey: ["members"] });
+    setError(null);
+    try {
+      await api.patch(`/org/members/${id}`, { role: newRole });
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+    } catch (err) {
+      setError(describeApiError(err, "Could not change that member's role."));
+    }
   }
 
   async function remove(id: string) {
-    await api.delete(`/org/members/${id}`);
-    queryClient.invalidateQueries({ queryKey: ["members"] });
+    setError(null);
+    try {
+      await api.delete(`/org/members/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["members"] });
+    } catch (err) {
+      setError(describeApiError(err, "Could not remove that member."));
+    }
   }
 
   if (membersError instanceof ApiError && membersError.status === 403) {
@@ -100,9 +125,18 @@ export default function TeamMembers() {
       )}
 
       <Card className="overflow-x-auto">
-        {isLoading ? (
-          <TableSkeleton rows={4} cols={4} />
-        ) : (
+        {/* Converged onto the shared component: this screen was the only one
+            handling an error at all, by its own hand-rolled route. */}
+        <QueryState
+          isLoading={isLoading}
+          isError={membersFailed}
+          error={membersError}
+          data={data}
+          refetch={refetchMembers}
+          errorFallback="We couldn't load your team members."
+          loading={<TableSkeleton rows={4} cols={4} />}
+        >
+          {(rows) => (
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
@@ -113,7 +147,7 @@ export default function TeamMembers() {
               </tr>
             </thead>
             <tbody>
-              {(data ?? []).map((m) => (
+              {rows.map((m) => (
                 <tr key={m.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
                   <td className="px-5 py-3 text-slate-900 dark:text-white">{m.email}</td>
                   <td className="px-5 py-3">
@@ -154,7 +188,8 @@ export default function TeamMembers() {
               ))}
             </tbody>
           </table>
-        )}
+          )}
+        </QueryState>
       </Card>
     </div>
   );

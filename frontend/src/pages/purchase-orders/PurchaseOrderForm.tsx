@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { FormField, Input, Select } from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
-import { api, ApiError } from "../../services/apiClient";
+import { api, ApiError, describeApiError } from "../../services/apiClient";
 
 interface Party {
   id: string;
@@ -26,7 +26,13 @@ interface FormState {
 
 export default function PurchaseOrderForm() {
   const navigate = useNavigate();
-  const { data: parties } = useQuery({ queryKey: ["parties", ""], queryFn: () => api.get<Party[]>("/parties") });
+  const {
+    data: parties,
+    isLoading: partiesLoading,
+    isError: partiesFailed,
+    error: partiesError,
+    refetch: refetchParties,
+  } = useQuery({ queryKey: ["parties", ""], queryFn: () => api.get<Party[]>("/parties") });
   const [form, setForm] = useState<FormState>({
     party_id: "",
     po_number: "",
@@ -58,11 +64,14 @@ export default function PurchaseOrderForm() {
       });
       navigate(`/purchase-orders/${po.id}`);
     } catch (err) {
-      if (err instanceof ApiError) {
+      // Only a 409 is a duplicate PO number. This used to treat *every*
+      // ApiError as one, so hitting the plan limit told the user their PO
+      // number was taken -- a wrong reason they could never resolve.
+      if (err instanceof ApiError && err.status === 409) {
         setPoNumberError("That PO number is already in use.");
         poNumberRef.current?.focus();
       } else {
-        setFormError("Could not save purchase order. Please try again.");
+        setFormError(describeApiError(err, "Could not save purchase order. Please try again."));
       }
     } finally {
       setSaving(false);
@@ -86,9 +95,39 @@ export default function PurchaseOrderForm() {
             </p>
           )}
 
+          {/* An empty dropdown has two very different causes, and silently
+              showing one for the other is how a user concludes their parties
+              vanished. Say which it is. */}
+          {partiesFailed && (
+            <p
+              role="alert"
+              className="flex flex-wrap items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400"
+            >
+              {describeApiError(partiesError, "We couldn't load your parties, so the list below is empty.")}
+              <button type="button" onClick={() => refetchParties()} className="font-medium underline">
+                Try again
+              </button>
+            </p>
+          )}
+
+          {!partiesFailed && !partiesLoading && (parties ?? []).length === 0 && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+              You don't have any parties yet.{" "}
+              <Link to="/parties/new" className="font-medium underline">
+                Create one first
+              </Link>{" "}
+              — a purchase order is always raised against a party.
+            </p>
+          )}
+
           <FormField label="Party" required>
-            <Select required value={form.party_id} onChange={(e) => update("party_id", e.target.value)}>
-              <option value="">Select a party...</option>
+            <Select
+              required
+              value={form.party_id}
+              onChange={(e) => update("party_id", e.target.value)}
+              disabled={partiesLoading || partiesFailed}
+            >
+              <option value="">{partiesLoading ? "Loading parties..." : "Select a party..."}</option>
               {(parties ?? []).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.party_name}

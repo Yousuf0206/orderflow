@@ -26,6 +26,10 @@ backend/src/*.egg-info/
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/.playwright/
 frontend/.env
 frontend/.env.local
 frontend/tsconfig.tsbuildinfo

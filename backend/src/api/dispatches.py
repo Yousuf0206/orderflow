@@ -37,9 +37,12 @@ def create_dispatch(
     if payload.qty > calc.remaining_balance and not payload.confirm:
         return DispatchCreateResponse(
             dispatch=None,
+            # Phrased for the person reading it, not for an API client:
+            # "resubmit with confirm=true" named a request parameter the user
+            # has no way to set -- the UI gives them a Confirm button instead.
             warning=(
-                f"This dispatch of {payload.qty} exceeds the remaining balance of "
-                f"{calc.remaining_balance}. Resubmit with confirm=true to proceed anyway."
+                f"This dispatch of {payload.qty} is more than the {calc.remaining_balance} "
+                f"still remaining on this order. Confirm to record it anyway."
             ),
         )
 
