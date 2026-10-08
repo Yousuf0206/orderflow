@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <rect width="1200" height="630" fill="#4f46e5"/>
-  <rect x="80" y="80" width="88" height="88" rx="20" fill="white"/>
-  <text x="124" y="146" font-family="Arial, sans-serif" font-size="56" font-weight="800" fill="#4f46e5" text-anchor="middle">O</text>
-  <text x="80" y="300" font-family="Arial, sans-serif" font-size="64" font-weight="800" fill="white">OrderFlow</text>
-  <text x="80" y="370" font-family="Arial, sans-serif" font-size="32" font-weight="400" fill="#e0e7ff">
-    Track Purchase Orders and partial dispatches, live.
-  </text>
-</svg>
