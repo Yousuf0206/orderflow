@@ -234,17 +234,19 @@ test("every control on the dispatch path is comfortable at phone widths", async 
   for (const width of [320, 360, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
 
-    for (const [label, url] of [
-      ["purchase order list", "/purchase-orders"],
-      ["purchase order detail", poUrl],
-    ] as const) {
-      await page.goto(url);
-      await expect(page.getByRole("button", { name: /add dispatch/i })).toBeVisible({
-        timeout: 15_000,
-      }).catch(() => undefined); // The list has no such button; detail does.
-      await expectNoHorizontalScroll(page);
-      await expectTouchTargets(page, `${label} at ${width}px`);
-    }
+    // Each screen waits on something it actually has. An earlier version
+    // waited for the dispatch button on both and swallowed the rejection on
+    // the list, which burned the full 15s timeout per width and blew the
+    // test's own 30s budget before it had measured anything.
+    await page.goto("/purchase-orders");
+    await expect(page.getByRole("link", { name: /^PO-/ }).first()).toBeVisible();
+    await expectNoHorizontalScroll(page);
+    await expectTouchTargets(page, `purchase order list at ${width}px`);
+
+    await page.goto(poUrl);
+    await expect(page.getByRole("button", { name: /add dispatch/i })).toBeVisible();
+    await expectNoHorizontalScroll(page);
+    await expectTouchTargets(page, `purchase order detail at ${width}px`);
 
     // The menu drawer is part of the path -- it is how a phone user reaches
     // the list in the first place.
