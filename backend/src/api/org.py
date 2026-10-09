@@ -8,7 +8,14 @@ from src.core.security import CurrentUser, require_role
 from src.core.tenant import TenantContext, get_tenant_context
 from src.models.membership import Membership
 from src.models.user import User
-from src.schemas.org import MemberInvite, MemberOut, MemberRoleUpdate, OrgOut, OrgUpdate
+from src.schemas.org import (
+    MemberInvite,
+    MemberInviteResult,
+    MemberOut,
+    MemberRoleUpdate,
+    OrgOut,
+    OrgUpdate,
+)
 from src.services.email import send_email
 from src.services.membership import assert_not_last_owner, validate_role
 
@@ -46,17 +53,41 @@ def list_members(
         .all()
     )
     return [
-        MemberOut(id=m.id, user_id=u.id, email=u.email, role=m.role, accepted=m.accepted_at is not None)
+        MemberOut(
+            id=m.id,
+            user_id=u.id,
+            email=u.email,
+            role=m.role,
+            accepted=m.accepted_at is not None,
+            invitation_email_sent_at=m.invitation_email_sent_at,
+        )
         for m, u in rows
     ]
 
 
-@router.post("/members/invite", response_model=MemberOut, status_code=status.HTTP_201_CREATED)
+def _invite_link(membership_id: str) -> str:
+    """A fresh single-use invite link. No token is stored, so every link for a
+    pending member is minted on demand rather than recalled."""
+    token = jwt.encode(
+        {
+            "sub": membership_id,
+            "type": "invite",
+            "exp": datetime.now(UTC) + timedelta(days=7),
+        },
+        settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+    return f"{settings.frontend_base_url}/accept-invite?token={token}"
+
+
+@router.post(
+    "/members/invite", response_model=MemberInviteResult, status_code=status.HTTP_201_CREATED
+)
 def invite_member(
     payload: MemberInvite,
     tenant: TenantContext = Depends(get_tenant_context),
     _owner: CurrentUser = Depends(require_role("owner")),
-) -> MemberOut:
+) -> MemberInviteResult:
     validate_role(payload.role)
     tenant.assert_can_add_user()
 
@@ -84,24 +115,69 @@ def invite_member(
     tenant.db.add(membership)
     tenant.db.flush()
 
-    token = jwt.encode(
-        {
-            "sub": membership.id,
-            "type": "invite",
-            "exp": datetime.now(UTC) + timedelta(days=7),
-        },
-        settings.jwt_secret,
-        algorithm=settings.jwt_algorithm,
-    )
-    link = f"{settings.frontend_base_url}/accept-invite?token={token}"
-    send_email(
+    link = _invite_link(membership.id)
+    outcome = send_email(
         to=user.email,
         subject=f"You've been invited to {tenant.organization.name} on OrderFlow",
         body=f"Accept your invite: {link}",
     )
+    # Set only on a confirmed send. Setting it whenever an invitation is
+    # created is the bug this replaces: the screen said "invitation sent" while
+    # the link had gone to a server log and nowhere else.
+    if outcome == "sent":
+        membership.invitation_email_sent_at = datetime.now(UTC)
 
     tenant.db.commit()
-    return MemberOut(id=membership.id, user_id=user.id, email=user.email, role=membership.role, accepted=False)
+    return MemberInviteResult(
+        id=membership.id,
+        user_id=user.id,
+        email=user.email,
+        role=membership.role,
+        accepted=False,
+        invitation_email_sent_at=membership.invitation_email_sent_at,
+        email_outcome=outcome,
+        # Offered whenever nothing was delivered, so the owner has a way to get
+        # their colleague in without a mail service.
+        invitation_link=None if outcome == "sent" else link,
+    )
+
+
+@router.post("/members/{membership_id}/resend", response_model=MemberInviteResult)
+def resend_invite(
+    membership_id: str,
+    tenant: TenantContext = Depends(get_tenant_context),
+    _owner: CurrentUser = Depends(require_role("owner")),
+) -> MemberInviteResult:
+    """Re-send a pending invitation, or just hand back a usable link."""
+    membership = tenant.db.get(Membership, membership_id)
+    if membership is None or membership.organization_id != tenant.organization_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Member not found")
+    if membership.accepted_at is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "That member has already accepted their invitation"
+        )
+
+    user = tenant.db.get(User, membership.user_id)
+    link = _invite_link(membership.id)
+    outcome = send_email(
+        to=user.email,
+        subject=f"You've been invited to {tenant.organization.name} on OrderFlow",
+        body=f"Accept your invite: {link}",
+    )
+    if outcome == "sent":
+        membership.invitation_email_sent_at = datetime.now(UTC)
+    tenant.db.commit()
+
+    return MemberInviteResult(
+        id=membership.id,
+        user_id=user.id,
+        email=user.email,
+        role=membership.role,
+        accepted=False,
+        invitation_email_sent_at=membership.invitation_email_sent_at,
+        email_outcome=outcome,
+        invitation_link=None if outcome == "sent" else link,
+    )
 
 
 @router.patch("/members/{membership_id}", response_model=MemberOut)
@@ -123,6 +199,7 @@ def change_role(
     return MemberOut(
         id=membership.id, user_id=user.id, email=user.email, role=membership.role,
         accepted=membership.accepted_at is not None,
+        invitation_email_sent_at=membership.invitation_email_sent_at,
     )
 
 

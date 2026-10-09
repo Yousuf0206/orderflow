@@ -19,3 +19,14 @@ class Membership(Base, TimestampMixin):
     role: Mapped[str] = mapped_column(String(20))
     invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # When a mail service accepted the invitation message. NULL means no email
+    # has been confirmed delivered -- none attempted, none configured, or the
+    # attempt failed. It MUST NOT be set optimistically: the whole point is
+    # that an owner can tell "we emailed them" from "we could not".
+    #
+    # Distinct from `invited_at`, which records that the invitation exists. The
+    # gap between the two is what an owner needs to see when a colleague says
+    # nothing arrived.
+    invitation_email_sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )

@@ -151,8 +151,20 @@ def accept_invite(payload: InviteAcceptRequest, db: Session = Depends(get_db)) -
     if data.get("type") != "invite":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong token type")
     membership = db.get(Membership, data["sub"])
-    if membership is None or membership.accepted_at is not None:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invite is invalid or already used")
+    # Separated because the remedies differ: an accepted invitation means "log
+    # in instead", an unknown one means "ask for a new invitation". An expired
+    # token never reaches here -- decode_token above rejects it with its own
+    # message.
+    if membership is None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "This invitation is no longer valid. Ask the organization owner to send a new one.",
+        )
+    if membership.accepted_at is not None:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "This invitation has already been accepted. You can log in with your password.",
+        )
     user = db.get(User, membership.user_id)
     user.password_hash = hash_password(payload.password)
     membership.accepted_at = datetime.now(UTC)
