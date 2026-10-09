@@ -9,6 +9,7 @@ import EmptyState from "../../components/ui/EmptyState";
 import QueryState from "../../components/ui/QueryState";
 import PageHeader from "../../components/ui/PageHeader";
 import { TableSkeleton } from "../../components/ui/Skeleton";
+import { usePermissions } from "../../hooks/usePermissions";
 import { api } from "../../services/apiClient";
 
 interface Party {
@@ -22,6 +23,7 @@ interface Party {
 
 export default function PartiesList() {
   const [q, setQ] = useState("");
+  const permissions = usePermissions();
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["parties", q],
     queryFn: () => api.get<Party[]>(`/parties${q ? `?q=${encodeURIComponent(q)}` : ""}`),
@@ -33,11 +35,13 @@ export default function PartiesList() {
         title="Parties"
         description="Customers and suppliers you create Purchase Orders against."
         action={
-          <Link to="/parties/new">
-            <Button>
-              <Plus size={16} /> New Party
-            </Button>
-          </Link>
+          permissions.canManageParties ? (
+            <Link to="/parties/new">
+              <Button>
+                <Plus size={16} /> New Party
+              </Button>
+            </Link>
+          ) : undefined
         }
       />
 
@@ -47,7 +51,7 @@ export default function PartiesList() {
           placeholder="Search by name or code..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          className="min-h-11 w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         />
       </div>
 
@@ -74,7 +78,7 @@ export default function PartiesList() {
                   : "Add the customers or suppliers you'll be tracking Purchase Orders against."
               }
               action={
-                q ? undefined : (
+                q || !permissions.canManageParties ? undefined : (
                   <Link to="/parties/new">
                     <Button>
                       <Plus size={16} /> New Party

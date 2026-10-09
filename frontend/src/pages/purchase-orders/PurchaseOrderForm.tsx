@@ -2,10 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import AccessDenied from "../../components/ui/AccessDenied";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { FormField, Input, Select } from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
+import { PermissionsUnconfirmed } from "../../components/ui/RoleNotice";
+import { usePermissions } from "../../hooks/usePermissions";
 import { api, ApiError, describeApiError } from "../../services/apiClient";
 
 interface Party {
@@ -26,6 +29,7 @@ interface FormState {
 
 export default function PurchaseOrderForm() {
   const navigate = useNavigate();
+  const permissions = usePermissions();
   const {
     data: parties,
     isLoading: partiesLoading,
@@ -76,6 +80,27 @@ export default function PurchaseOrderForm() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Reachable by typed URL even though the link is hidden. A form that
+  // submits into a refusal is the defect, not a milder form of it.
+  if (permissions.unknown) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4">
+        <PageHeader title="New Purchase Order" />
+        <Card>
+          <PermissionsUnconfirmed onRetry={permissions.retry} />
+        </Card>
+      </div>
+    );
+  }
+  if (!permissions.canManageOrders) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4">
+        <PageHeader title="New Purchase Order" />
+        <AccessDenied description="Creating purchase orders needs Manager access or above." />
+      </div>
+    );
   }
 
   return (

@@ -9,8 +9,10 @@ import EmptyState from "../../components/ui/EmptyState";
 import { FormField, Input } from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
 import QueryState from "../../components/ui/QueryState";
+import { PermissionsUnconfirmed, RoleRequired } from "../../components/ui/RoleNotice";
 import { KpiSkeletonRow, Skeleton, TableSkeleton } from "../../components/ui/Skeleton";
 import StatCard from "../../components/ui/StatCard";
+import { usePermissions } from "../../hooks/usePermissions";
 import { api, describeApiError } from "../../services/apiClient";
 
 interface PurchaseOrder {
@@ -38,6 +40,7 @@ const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 })
 export default function PurchaseOrderDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
+  const permissions = usePermissions();
   const [form, setForm] = useState({ dispatch_date: new Date().toISOString().slice(0, 10), qty: "", vehicle_ref: "", remarks: "" });
   const [warning, setWarning] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -130,10 +133,19 @@ export default function PurchaseOrderDetail() {
         </div>
       </div>
 
-      <Card>
+      {/* The form is rendered only for a role the server will accept.
+          Previously every Viewer filled it in and was refused by
+          dispatches.py, with nothing wrong with what they had typed -- which
+          reads as a broken product rather than a permission boundary. */}
+      <Card data-testid="dispatch-card">
         <CardHeader>
           <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Record a Dispatch</h2>
         </CardHeader>
+        {permissions.unknown ? (
+          <PermissionsUnconfirmed onRetry={permissions.retry} />
+        ) : !permissions.canRecordDispatch ? (
+          <RoleRequired action="Recording dispatches" role="Staff" />
+        ) : (
         <div className="space-y-4 p-5">
           {submitError && (
             <p
@@ -153,7 +165,7 @@ export default function PurchaseOrderDetail() {
               <button
                 type="button"
                 onClick={() => submitDispatch(true)}
-                className="inline-flex min-h-[2.25rem] items-center justify-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-amber-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-600 sm:w-auto"
               >
                 Confirm anyway
               </button>
@@ -191,11 +203,14 @@ export default function PurchaseOrderDetail() {
             <FormField label="Remarks">
               <Input value={form.remarks} onChange={(e) => update("remarks", e.target.value)} />
             </FormField>
-            <Button type="submit" disabled={saving} className="sm:col-span-2">
+            {/* Full width on a phone, and last in document flow so an
+                on-screen keyboard over a field above does not cover it. */}
+            <Button type="submit" disabled={saving} block className="sm:col-span-2">
               {saving ? "Saving..." : "Add Dispatch"}
             </Button>
           </form>
         </div>
+        )}
       </Card>
 
       <div data-capture="dispatch-history">

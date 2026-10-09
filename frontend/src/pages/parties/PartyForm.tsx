@@ -1,10 +1,13 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import AccessDenied from "../../components/ui/AccessDenied";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { FormField, Input } from "../../components/ui/Field";
 import PageHeader from "../../components/ui/PageHeader";
+import { PermissionsUnconfirmed } from "../../components/ui/RoleNotice";
+import { usePermissions } from "../../hooks/usePermissions";
 import { api, ApiError } from "../../services/apiClient";
 
 interface FormState {
@@ -17,6 +20,7 @@ interface FormState {
 
 export default function PartyForm() {
   const navigate = useNavigate();
+  const permissions = usePermissions();
   const [form, setForm] = useState<FormState>({ party_code: "", party_name: "", city: "", contact_person: "", phone: "" });
   const [formError, setFormError] = useState<string | null>(null);
   const [codeError, setCodeError] = useState<string | null>(null);
@@ -45,6 +49,28 @@ export default function PartyForm() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // The link to this screen is already hidden from roles that cannot create a
+  // party, but a URL can be typed or bookmarked -- and a form that submits
+  // into a refusal is the defect being removed, not a lesser version of it.
+  if (permissions.unknown) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4">
+        <PageHeader title="New Party" />
+        <Card>
+          <PermissionsUnconfirmed onRetry={permissions.retry} />
+        </Card>
+      </div>
+    );
+  }
+  if (!permissions.canManageParties) {
+    return (
+      <div className="mx-auto max-w-xl space-y-4">
+        <PageHeader title="New Party" />
+        <AccessDenied description="Creating parties needs Manager access or above." />
+      </div>
+    );
   }
 
   return (

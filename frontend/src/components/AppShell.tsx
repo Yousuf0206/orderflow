@@ -16,6 +16,7 @@ import {
 import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { usePermissions, type PermissionsState } from "../hooks/usePermissions";
 import { describeApiError } from "../services/apiClient";
 import { getMe, logout } from "../services/auth";
 import Notifications from "./Notifications";
@@ -29,10 +30,24 @@ const NAV_ITEMS = [
   { to: "/audit-log", label: "Audit Log", icon: ScrollText },
 ];
 
+// Visibility reads the shared capability table rather than comparing role
+// strings here. Role literals used to live inline in this file, which is how
+// the dispatch screen ended up with no role check at all -- there was no one
+// place to look.
 const SETTINGS_ITEMS = [
-  { to: "/settings/team", label: "Team", icon: Users, visible: (role: string | null) => role === "owner" || role === "manager" },
+  {
+    to: "/settings/team",
+    label: "Team",
+    icon: Users,
+    visible: (caps: PermissionsState) => caps.canManageTeamMembers,
+  },
   { to: "/settings/company", label: "Company", icon: Settings, visible: () => true },
-  { to: "/billing", label: "Billing", icon: Wallet, visible: (role: string | null) => role === "owner" },
+  {
+    to: "/billing",
+    label: "Billing",
+    icon: Wallet,
+    visible: (caps: PermissionsState) => caps.canManageBilling,
+  },
 ] as const;
 
 function NavItem({ to, label, icon: Icon, onClick }: { to: string; label: string; icon: typeof LayoutDashboard; onClick?: () => void }) {
@@ -41,7 +56,7 @@ function NavItem({ to, label, icon: Icon, onClick }: { to: string; label: string
       to={to}
       onClick={onClick}
       className={({ isActive }) =>
-        `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+        `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
           isActive
             ? "bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-400"
             : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -57,11 +72,13 @@ function NavItem({ to, label, icon: Icon, onClick }: { to: string; label: string
 function SidebarContent({
   userEmail,
   role,
+  caps,
   isSuperAdmin,
   onNavigate,
 }: {
   userEmail?: string;
   role?: string | null;
+  caps: PermissionsState;
   isSuperAdmin?: boolean;
   onNavigate?: () => void;
 }) {
@@ -80,7 +97,7 @@ function SidebarContent({
         <p className="mt-5 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           Organization
         </p>
-        {SETTINGS_ITEMS.filter((item) => item.visible(role ?? null)).map(({ visible: _visible, ...item }) => (
+        {SETTINGS_ITEMS.filter((item) => item.visible(caps)).map(({ visible: _visible, ...item }) => (
           <NavItem key={item.to} {...item} onClick={onNavigate} />
         ))}
         {isSuperAdmin && <NavItem to="/admin" label="Super Admin" icon={ShieldCheck} onClick={onNavigate} />}
@@ -99,7 +116,7 @@ function SidebarContent({
         )}
         <button
           onClick={logout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+          className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
         >
           <LogOut size={18} strokeWidth={2} aria-hidden="true" />
           Log out
@@ -111,6 +128,7 @@ function SidebarContent({
 
 export default function AppShell() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const caps = usePermissions();
   const {
     data: me,
     isError: meFailed,
@@ -122,7 +140,12 @@ export default function AppShell() {
     <div className="flex min-h-dvh bg-slate-50 dark:bg-slate-950">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white py-4 dark:border-slate-800 dark:bg-slate-900 md:flex">
-        <SidebarContent userEmail={me?.user.email} role={me?.role} isSuperAdmin={me?.is_super_admin} />
+        <SidebarContent
+          userEmail={me?.user.email}
+          role={me?.role}
+          caps={caps}
+          isSuperAdmin={me?.is_super_admin}
+        />
       </aside>
 
       {/* Mobile drawer */}
@@ -135,7 +158,7 @@ export default function AppShell() {
               <button
                 onClick={() => setMobileNavOpen(false)}
                 aria-label="Close menu"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
               >
                 <X size={18} />
               </button>
@@ -143,6 +166,7 @@ export default function AppShell() {
             <SidebarContent
               userEmail={me?.user.email}
               role={me?.role}
+              caps={caps}
               isSuperAdmin={me?.is_super_admin}
               onNavigate={() => setMobileNavOpen(false)}
             />
@@ -155,7 +179,7 @@ export default function AppShell() {
           <button
             onClick={() => setMobileNavOpen(true)}
             aria-label="Open menu"
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 md:hidden"
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 md:hidden"
           >
             <Menu size={20} />
           </button>
