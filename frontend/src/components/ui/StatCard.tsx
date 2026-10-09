@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface StatCardProps {
   label: string;
@@ -6,6 +7,13 @@ interface StatCardProps {
   icon: LucideIcon;
   tone?: "default" | "success" | "warning" | "danger";
   hint?: string;
+  /**
+   * Makes the whole card a link, for a figure that stands for a set of rows.
+   *
+   * Callers pass it only when there is something to see: a zero count must not
+   * be a link, or pressing it opens an empty list that reads as an error.
+   */
+  to?: string;
 }
 
 const TONE_STYLES: Record<NonNullable<StatCardProps["tone"]>, string> = {
@@ -15,17 +23,16 @@ const TONE_STYLES: Record<NonNullable<StatCardProps["tone"]>, string> = {
   danger: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
 };
 
-export default function StatCard({ label, value, icon: Icon, tone = "default", hint }: StatCardProps) {
-  return (
-    // data-stat gives tests a stable hook for "the Remaining figure" rather
-    // than searching the page for the text "70" -- which also matches the
-    // signed-in user's email in the app shell, and silently passes against the
-    // wrong element.
-    <div
-      data-stat={label}
-      className="rounded-xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900"
-    >
-      <div className="flex items-start justify-between">
+export default function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone = "default",
+  hint,
+  to,
+}: StatCardProps) {
+  const body = (
+    <div className="flex items-start justify-between">
         <div>
           <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</p>
           <p
@@ -39,7 +46,31 @@ export default function StatCard({ label, value, icon: Icon, tone = "default", h
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${TONE_STYLES[tone]}`}>
           <Icon size={20} strokeWidth={2} aria-hidden="true" />
         </div>
-      </div>
+    </div>
+  );
+
+  // data-stat gives tests a stable hook for "the Remaining figure" rather
+  // than searching the page for the text "70" -- which also matches the
+  // signed-in user's email in the app shell, and silently passes against the
+  // wrong element.
+  const shell =
+    "block rounded-xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900";
+
+  if (to) {
+    return (
+      <Link
+        to={to}
+        data-stat={label}
+        className={`${shell} transition-colors hover:border-brand-300 hover:bg-brand-50/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:hover:border-brand-500/40 dark:hover:bg-brand-500/5`}
+      >
+        {body}
+      </Link>
+    );
+  }
+
+  return (
+    <div data-stat={label} className={shell}>
+      {body}
     </div>
   );
 }

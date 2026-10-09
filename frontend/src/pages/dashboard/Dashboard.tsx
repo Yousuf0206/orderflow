@@ -120,7 +120,17 @@ function DashboardView({ data }: { data: DashboardData }) {
         />
         <StatCard label="On Track" value={String(data.on_track_count)} icon={CheckCircle2} tone="success" />
         <StatCard label="Due Soon" value={String(data.due_soon_count)} icon={Clock} tone="warning" />
-        <StatCard label="Overdue" value={String(data.overdue_count)} icon={AlertTriangle} tone="danger" />
+        {/* Pressing the figure opens the orders it counts. Not a link at zero:
+            an empty list arrived at by pressing a number reads as a fault
+            rather than as good news. The count and the row count agree because
+            both come from one status definition in po_calc. */}
+        <StatCard
+          label="Overdue"
+          value={String(data.overdue_count)}
+          icon={AlertTriangle}
+          tone="danger"
+          to={data.overdue_count > 0 ? "/purchase-orders?status=overdue" : undefined}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
