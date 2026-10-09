@@ -3,6 +3,15 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   /**
+   * Refuses to run against a non-local database.
+   *
+   * This suite signs up through the real API, so every run writes an
+   * organization, a user, parties, orders and dispatches wherever the backend
+   * points. The landing fixture script already refuses a remote host; the
+   * suite that writes far more had no such guard.
+   */
+  globalSetup: "./tests/e2e/globalSetup.ts",
+  /**
    * One worker.
    *
    * The suite shares a single dev server and a single-process backend. At two

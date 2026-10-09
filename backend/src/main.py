@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -46,4 +48,15 @@ app.include_router(admin.router)
 
 @app.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    """Liveness, plus which database host this process is pointed at.
+
+    The host alone -- never the user, password, or database name. It is here so
+    a test run can refuse to write fabricated organizations into a production
+    database, the same check `seed_landing_demo.py` makes before seeding.
+    Knowing the hostname of a database you cannot reach is not a disclosure
+    worth the risk of a suite silently populating real customer data.
+    """
+    return {
+        "status": "ok",
+        "database_host": urlparse(settings.database_url).hostname,
+    }
