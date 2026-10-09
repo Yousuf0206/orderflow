@@ -26,6 +26,62 @@ python -m src.scripts.seed        # optional: creates demo org + data
 uvicorn src.main:app --reload --port 8000
 ```
 
+### DATABASE_URL must point at a local database
+
+**This is the single most important line in your `.env`, and the most dangerous to get
+wrong.** This project's production database already holds several hundred organizations
+created by test suites that resolved their connection from a developer's `.env`. Set it to a
+local PostgreSQL:
+
+```
+DATABASE_URL=postgresql+psycopg://orderflow:orderflow@localhost:5432/orderflow
+```
+
+or, with Docker:
+
+```bash
+docker run -d --name orderflow-pg -e POSTGRES_USER=orderflow \
+  -e POSTGRES_PASSWORD=orderflow -e POSTGRES_DB=orderflow -p 5432:5432 postgres:16
+```
+
+Three guards exist because of that history, and they are defaults rather than conventions
+(Constitution Principle XXVII):
+
+- **The e2e suite refuses to run** unless the backend reports a local database host. If it
+  refuses, fix `DATABASE_URL` — do not reach for the override. `GET /health` tells you which
+  host the backend is using (hostname only, never credentials).
+- **`seed_landing_demo.py` refuses** a non-local host, because it creates fixture rows and
+  `--recreate` hard-deletes them.
+- **The test suite never migrates.** `pytest` disables the startup migration session-wide, and
+  the app skips it under pytest as well. Verified by running the suite with `DATABASE_URL`
+  pointed at an unroutable address: every test still passes, because nothing connects to it.
+
+The one deliberate exception is `src/scripts/smoke_deployed.py`, which checks a deployed
+system on purpose. It takes its target as a required argument, speaks only HTTP, and is not
+part of any suite — so it cannot be reached by accident.
+
+### Migrations run at startup
+
+`src/core/migrate.py` brings the schema to head when the app boots, under a PostgreSQL
+advisory lock so concurrent instances queue rather than race. It exists because a migration
+was once deployed without being applied, which returned 500 from signup and from every
+authenticated request until someone noticed.
+
+Set `AUTO_MIGRATE=false` if a deployment grows a separate release phase that owns this.
+
+### Tests that need a real PostgreSQL
+
+The migration tests use an advisory lock and alembic history, neither of which SQLite has.
+They **skip silently** without a database, so set `TEST_PG_URL`:
+
+```bash
+docker run -d --name pg -e POSTGRES_USER=orderflow -e POSTGRES_PASSWORD=orderflow \
+  -e POSTGRES_DB=orderflow -p 5434:5432 postgres:16
+TEST_PG_URL=postgresql+psycopg://orderflow:orderflow@localhost:5434/orderflow pytest -q
+```
+
+CI sets it. Locally, a skipped test for the thing that took production down is not a guard.
+
 API docs (Swagger UI) are then available at `http://localhost:8000/docs`.
 
 Demo login after seeding: `owner@demo.orderflow` / `password123`.
@@ -74,8 +130,34 @@ docker run -p 8000:8000 --env-file .env orderflow-backend
 
 ## CI
 
-`.github/workflows/ci.yml` runs backend lint+tests, frontend typecheck+lint+unit
-tests+build, and a Docker build sanity check on every push/PR.
+`.github/workflows/ci.yml` runs backend lint+tests (with a PostgreSQL service, so the
+migration tests run rather than skip), frontend typecheck+lint+unit tests+build, and a Docker
+build sanity check on every push/PR.
+
+`.github/workflows/post-deploy-smoke.yml` runs after a successful **production** deployment
+and checks the deployed system — see below.
+
+## Releasing
+
+Three gates, in `docs/SMOKE_CHECKLIST.md`, split into what is run before a deploy and what is
+run after. The split is the point: before-deploy items verify the build, after-deploy items
+verify what users reach, and on 2026-10-09 the first passed while the second would have
+failed for hours.
+
+```bash
+# after any production deploy
+python backend/src/scripts/smoke_deployed.py https://purchaseorderflow.vercel.app
+```
+
+Exit 0 passed, 1 the deployment answered and a step failed, 2 it could not be reached. Only
+a 2 justifies a re-run.
+
+The other two gates cannot be run by a machine and are not pretended otherwise:
+
+- **A dispatch on a real phone**, once per release train, recorded from the template at
+  `docs/qa/mobile-dispatch.md` into `docs/qa/records/<tag>.md`. Until that exists, the
+  release may not be described as supporting mobile dispatch (Constitution Principle XXVI).
+- **An export opened in Excel and Google Sheets**, once per release.
 
 ## What's simplified for MVP (see research.md for full rationale)
 

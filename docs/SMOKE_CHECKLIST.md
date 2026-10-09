@@ -3,14 +3,40 @@
 **This is a release gate, not a formality.** If any item fails, the build is not announced
 to beta users — regardless of what else in the release is ready.
 
-Run manually against any new deploy. Most items are also covered by an automated test,
-noted in parentheses; where no test is named the check is manual only, either because it
-needs a real browser at a real viewport or because it needs a stalled connection that
-jsdom cannot simulate. Run the suites first:
+The checklist has two halves, and the split matters. Everything under **Before the deploy**
+is run against a local stack and tells you the *build* works. Everything under
+[**After the deploy**](#after-the-deploy) is run against the *deployment* and tells you what
+users actually reach.
+
+That distinction is not pedantry. On 2026-10-09 this checklist passed, every automated test
+passed, and production returned 500 from signup and from every authenticated request for
+hours — a migration had been deployed without being applied. The build was fine. Nothing had
+looked at the running system.
+
+Most items are also covered by an automated test, noted in parentheses; where no test is named
+the check is manual only, either because it needs a real browser at a real viewport, or a
+stalled connection that jsdom cannot simulate, or a physical device.
+
+---
+
+# Before the deploy
+
+Run the suites first:
 
 ```bash
 cd backend  && pytest
 cd frontend && npm run test -- --run && npm run build && npm run test:e2e
+```
+
+**If the e2e suite refuses to run**, the backend is pointed at a non-local database. That is
+the guard working. Fix the configuration rather than overriding it.
+
+The migration tests need a real PostgreSQL and skip silently without one:
+
+```bash
+docker run -d --name pg -e POSTGRES_USER=orderflow -e POSTGRES_PASSWORD=orderflow \
+  -e POSTGRES_DB=orderflow -p 5434:5432 postgres:16
+cd backend && TEST_PG_URL=postgresql+psycopg://orderflow:orderflow@localhost:5434/orderflow pytest -q
 ```
 
 ## Core loop
@@ -100,11 +126,86 @@ Open each of these, then block or kill the request in devtools → Network:
 - [ ] An empty list shows an empty state naming a next action, not a false error
   (`tests/unit/QueryState.test.tsx`, `coreLoopFailureStates.test.tsx`, `noSilentFailures.test.tsx`)
 
-## Mobile (Principle VIII)
+## Mobile viewport (Principle VIII and XXII)
 - [ ] Public pages, the empty dashboard, Billing, error states, and the whole core loop
       at 390px wide — no sideways scrolling, and the loop is completable
-  (`tests/e2e/mobile-viewport.spec.ts` — this one is automated; run `npm run test:e2e`)
+- [ ] Every interactive control on the dispatch path is at least 44×44 CSS pixels at
+      320 / 360 / 390 / 430px
+  (`tests/e2e/mobile-viewport.spec.ts` — automated; run `npm run test:e2e`)
+
+> **This section does not settle mobile.** It measures width, and a viewport has no thumb and
+> no on-screen keyboard. Whether the submit control is reachable with the keyboard open is
+> unanswered by everything above, and Constitution Principle XXVI explicitly forbids citing
+> these automated checks as if they covered it. The real-device record under
+> [After the deploy](#after-the-deploy) is the gate for any mobile claim.
 
 ## Trust & SEO
 - [ ] Favicon shows in the browser tab (not broken/missing)
 - [ ] `/`, `/pricing`, `/login`, `/signup` each have a distinct `<title>`
+
+---
+
+# After the deploy
+
+Everything above verifies the build. These verify the deployment — the thing users reach.
+**None of these can be satisfied by a local run.**
+
+## Deployed smoke (Principle XXIV)
+
+```bash
+python backend/src/scripts/smoke_deployed.py https://purchaseorderflow.vercel.app
+```
+
+Signs up, reads the account back, creates a party and a purchase order, records a dispatch,
+and checks the remaining balance. The authenticated read is the step that matters: during the
+2026-10-09 outage login returned 200 the whole time, and it was the read that failed.
+
+Exit codes carry meaning, so read them rather than just "did it go green":
+
+| Code | Meaning | What to do |
+| --- | --- | --- |
+| 0 | Passed | Proceed |
+| 1 | The deployment answered and a step failed | It is broken. Do not announce |
+| 2 | Could not be reached | Nothing was learned. Re-run; if it persists, it is down |
+
+**Only exit 2 justifies a re-run.** Re-running a 1 until it goes green is how an outage gets
+announced.
+
+- [ ] Exits 0 against the production alias
+- [ ] A duplicate email returns 409 with the error on the Email field, not a banner, and not a 500
+
+It runs automatically on every successful production deployment
+(`.github/workflows/post-deploy-smoke.yml`). It creates one organization named
+`SMOKE <timestamp>` per run and prints the ids — deliberate, because checking anywhere else
+does not verify what users reach.
+
+## Real-device dispatch (Principle XXVI) — no command closes this
+
+- [ ] A dispatch recorded on a physical **Android** device against the deployment
+- [ ] A dispatch recorded on a physical **iPhone in Safari** against the deployment
+- [ ] Both records filed at `docs/qa/records/<release-tag>.md` from the template at
+      `docs/qa/mobile-dispatch.md`, with device, OS, browser and outcome named
+
+**Until both pass for this release, it may not be announced or described as supporting
+mobile dispatch.** A Playwright run does not substitute. A record from a previous release
+does not carry over.
+
+## Spreadsheet acceptance (Principle XXV) — manual, once per release
+
+Download from the **deployed** product, not a local one:
+
+- [ ] Party remaining export, in every offered format
+- [ ] All three organization reports, in every offered format
+- [ ] Each opened in **both** Excel and Google Sheets — they disagree about type inference,
+      so one is half a check
+- [ ] Columns land in their own columns; the first row reads as a header
+- [ ] **Selecting a quantity column shows a sum in the status bar** — numbers stored as text
+      look identical and make `SUM` return zero, which a trader finds while reconciling
+- [ ] Dates read as dates; a party name with a comma or quote renders intact
+- [ ] A report with no matching rows still shows its header row and reads as an empty report,
+      not a blank file
+
+Applications used: ______________________
+
+Anything that renders wrongly is filed as a defect against the export, not worked around by
+whoever found it — the next person to download it will not know about the workaround.
