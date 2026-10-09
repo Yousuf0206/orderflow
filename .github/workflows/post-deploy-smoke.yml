@@ -1,0 +1,54 @@
+name: Post-deploy smoke
+
+# Constitution Principle XXIV: verify the deployed system, not only the build.
+#
+# On 2026-10-09 the build was green and every test passed while production
+# returned 500 from signup and from every authenticated request, for hours,
+# because a migration had been deployed without being applied. Nothing was
+# looking at the running system.
+#
+# Vercel creates GitHub Deployments and reports their status, so this runs the
+# moment a production deployment succeeds and checks what users actually reach.
+on:
+  deployment_status:
+  # Also runnable by hand -- against a preview, or during an incident when
+  # waiting for an event is the last thing anyone wants.
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL to check
+        required: true
+        default: https://purchaseorderflow.vercel.app
+
+jobs:
+  smoke:
+    # Only successful production deployments. A preview going green says
+    # nothing about what customers are using, and firing on every state would
+    # check a deployment mid-rollout.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       contains(fromJSON('["Production","production"]'), github.event.deployment.environment))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # No pip install: the check is standard library only, deliberately, so
+      # it still runs when the backend package is the thing under suspicion.
+      - name: Check the deployed system
+        run: |
+          URL="${{ github.event.inputs.base_url || github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}"
+          if [ -z "$URL" ]; then
+            echo "::error::No deployment URL found in the event payload"
+            exit 1
+          fi
+          echo "Checking $URL"
+          python backend/src/scripts/smoke_deployed.py "$URL"
+          # Exit codes are part of the contract and are preserved here:
+          #   0 passed, 1 the deployment answered and a step failed,
+          #   2 the deployment could not be reached.
+          # A failure fails this run, so a red mark exists against that
+          # deployment and the release is not announced (FR-007).
