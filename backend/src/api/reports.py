@@ -16,6 +16,22 @@ REPORT_TITLES = {
     "dispatch-history": "Dispatch History",
 }
 
+# Declared rather than inferred from the first row. An empty report used to
+# produce a file with no header at all -- "Overdue Orders" with nothing overdue
+# downloaded as two bytes, which opens as a blank sheet and tells a trader
+# nothing. Headers with no rows say "none, and here is what none means".
+REPORT_COLUMNS = {
+    "remaining-by-party": ["party_code", "party_name", "remaining_balance"],
+    "overdue-orders": [
+        "po_number",
+        "material",
+        "due_date",
+        "remaining_balance",
+        "days_to_delivery",
+    ],
+    "dispatch-history": ["po_number", "dispatch_date", "qty", "vehicle_ref", "remarks"],
+}
+
 
 def _remaining_by_party(tenant: TenantContext) -> list[dict]:
     parties = tenant.scoped(tenant.db.query(Party), Party).filter(Party.deleted_at.is_(None)).all()
@@ -113,7 +129,7 @@ def export_report(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Unknown format {format!r}")
 
     rows = REPORTS[report](tenant)
-    fieldnames = list(rows[0].keys()) if rows else []
+    fieldnames = REPORT_COLUMNS[report]
     org_name = tenant.organization.name
 
     # Writers live in services/exports.py so the party-level export produces
