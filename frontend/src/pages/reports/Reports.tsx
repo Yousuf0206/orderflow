@@ -8,7 +8,8 @@ import EmptyState from "../../components/ui/EmptyState";
 import QueryState from "../../components/ui/QueryState";
 import PageHeader from "../../components/ui/PageHeader";
 import { TableSkeleton } from "../../components/ui/Skeleton";
-import { api, ApiError, describeApiError, getTokens } from "../../services/apiClient";
+import { api, describeApiError } from "../../services/apiClient";
+import { downloadExport } from "../../services/download";
 
 const REPORTS = [
   { key: "remaining-by-party", label: "Remaining by Party" },
@@ -21,8 +22,6 @@ const EXPORT_FORMATS = [
   { format: "xlsx", label: "Excel", icon: FileSpreadsheet },
   { format: "pdf", label: "PDF", icon: FileText },
 ] as const;
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export default function Reports() {
   const [selected, setSelected] = useState(REPORTS[0].key);
@@ -37,26 +36,13 @@ export default function Reports() {
     setExporting(format);
     setExportError(null);
     try {
-      const tokens = getTokens();
-      const url = `${API_BASE}/reports/${selected}/export?format=${format}`;
-      const resp = await fetch(url, { headers: { Authorization: `Bearer ${tokens?.access_token}` } });
-
-      // Checked before building the download. Without this, a 403 or 500
-      // response body went straight into createObjectURL and landed in the
-      // user's downloads as a file named report.csv containing a JSON error.
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => null);
-        throw new ApiError(resp.status, body);
-      }
-
-      const disposition = resp.headers.get("content-disposition") ?? "";
-      const filenameMatch = /filename="?([^"]+)"?/.exec(disposition);
-      const blob = await resp.blob();
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = filenameMatch?.[1] ?? `${selected}.${format}`;
-      link.click();
-      URL.revokeObjectURL(link.href);
+      // The response check and the filename handling live in
+      // services/download.ts so the party export shares them rather than
+      // keeping a second copy (see the comment there).
+      await downloadExport(
+        `/reports/${selected}/export?format=${format}`,
+        `${selected}.${format}`,
+      );
     } catch (err) {
       // Previously only a `finally`, so a network failure stopped the spinner
       // and raised an unhandled rejection -- the export simply never happened
