@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from src.core.tenant import TenantContext, get_tenant_context
 from src.models.party import Party
 from src.models.purchase_order import PurchaseOrder
-from src.services.po_calc import compute
+from src.services.po_calc import compute_many
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
@@ -24,8 +24,13 @@ def get_dashboard(tenant: TenantContext = Depends(get_tenant_context)) -> dict:
     status_counts = {"on_track": 0, "due_soon": 0, "overdue": 0, "fully_dispatched": 0}
     by_party: dict[str, float] = {}
 
+    # One aggregate for every order, not one query per order. The overdue count
+    # below comes from the same status definition the purchase order list
+    # filters on, which is what makes the two agree by construction.
+    calcs = compute_many(tenant.db, pos)
+
     for po in pos:
-        calc = compute(tenant.db, po)
+        calc = calcs[po.id]
         total_remaining += max(calc.remaining_balance, 0)
         status_counts[calc.status] = status_counts.get(calc.status, 0) + 1
         if calc.remaining_balance > 0:

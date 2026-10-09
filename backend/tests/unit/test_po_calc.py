@@ -11,22 +11,32 @@ class FakePO:
 
 
 class FakeQuery:
-    def __init__(self, total):
-        self._total = total
+    """Mimics the grouped aggregate `total_dispatched_many` issues.
+
+    Updated when the per-order `SELECT sum(qty)` became one grouped query for
+    the whole set; the shape asserted here is `(purchase_order_id, total)` rows
+    from `.group_by(...).all()`.
+    """
+
+    def __init__(self, rows):
+        self._rows = rows
 
     def filter(self, *args, **kwargs):
         return self
 
-    def scalar(self):
-        return self._total
+    def group_by(self, *args, **kwargs):
+        return self
+
+    def all(self):
+        return self._rows
 
 
 class FakeDB:
-    def __init__(self, total_dispatched):
-        self._total = total_dispatched
+    def __init__(self, total_dispatched, po_id="po1"):
+        self._rows = [(po_id, total_dispatched)]
 
     def query(self, *args, **kwargs):
-        return FakeQuery(self._total)
+        return FakeQuery(self._rows)
 
 
 def test_remaining_balance_is_never_cached_always_derived():
