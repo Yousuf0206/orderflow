@@ -37,7 +37,9 @@ from src.models.user import User
 
 ORG_NAME = "OrderFlow Demo"
 OWNER_EMAIL = "demo@orderflow.example"
-OWNER_PASSWORD = "password123"  # noqa: S105 - local fixture only, never deployed
+# Local fixture only, never deployed. The guard below refuses to run this
+# script against anything but a local database.
+OWNER_PASSWORD = "password123"
 
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "db", "postgres"}
 

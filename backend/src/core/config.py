@@ -38,5 +38,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:5173"]
 
+    # Run `alembic upgrade head` at startup, before serving. On by default
+    # because nothing else in this pipeline owns that ordering: Vercel deploys
+    # on push, CI runs alongside it without deploying, and a code-ahead-of-
+    # schema deploy is what took production down on 2026-10-09.
+    # Set false where a separate release phase runs migrations instead.
+    auto_migrate: bool = True
+
 
 settings = Settings()

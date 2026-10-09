@@ -177,5 +177,5 @@ def test_membership_column_is_nullable_and_defaults_to_null(client, no_smtp):
     assert Membership.__table__.c.invitation_email_sent_at.nullable is True
 
     members = client.get("/org/members", headers=headers).json()
-    owner = [m for m in members if m["email"] == "i10@test.com"][0]
+    owner = next(m for m in members if m["email"] == "i10@test.com")
     assert owner["invitation_email_sent_at"] is None

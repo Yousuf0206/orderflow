@@ -11,14 +11,47 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # The migration tests need a real PostgreSQL: they exercise an advisory
+    # lock and alembic history, neither of which SQLite has. Without this they
+    # skip, and a skipped test for the thing that took production down is not
+    # much of a guard.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: orderflow
+          POSTGRES_PASSWORD: orderflow
+          POSTGRES_DB: orderflow
+        ports:
+          - 5434:5432
+        options: >-
+          --health-cmd "pg_isready -U orderflow -d orderflow"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_PG_URL: postgresql+psycopg://orderflow:orderflow@localhost:5434/orderflow
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: ruff check src/
+      - run: ruff check src/ tests/
       - run: pytest -q
+      # The whole migration chain must apply to an empty database. Cheap, and
+      # it catches a migration that is broken rather than merely unapplied.
+      - run: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://orderflow:orderflow@localhost:5434/orderflow
+      # Deliberately NOT running `alembic check` here. It currently reports
+      # ~25 differences, all of them index naming: 0001_initial.py was
+      # hand-written with names like ix_audit_org, while `index=True` on the
+      # models implies ix_audit_log_entries_organization_id. Same columns,
+      # different labels. Turning it on now would make CI red on day one for
+      # a cosmetic mismatch, which teaches everyone to ignore the signal.
+      # Worth fixing with a rename migration, as its own piece of work -- then
+      # add the check and it will mean something.
 
   frontend:
     runs-on: ubuntu-latest

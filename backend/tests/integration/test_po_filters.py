@@ -120,7 +120,7 @@ def test_filters_combine_with_and(client):
 
 
 def test_party_filter_cannot_reach_another_organizations_rows(client):
-    headers_a, parties_a, _ = _seed(client, "f8a@test.com", "Filter Org 8a")
+    _, parties_a, _ = _seed(client, "f8a@test.com", "Filter Org 8a")
     headers_b, _, _ = _seed(client, "f8b@test.com", "Filter Org 8b")
 
     # Organization B asking for organization A's party id gets nothing, not a

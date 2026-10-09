@@ -127,7 +127,7 @@ def test_party_with_no_open_orders_produces_no_file(client):
 def test_another_organizations_party_is_404_not_403(client):
     """That a party exists elsewhere is not information this organization is
     entitled to (Principle I)."""
-    headers_a, party_a, _ = _seed(client, "x7a@test.com", "Export Org 7a")
+    _, party_a, _ = _seed(client, "x7a@test.com", "Export Org 7a")
     headers_b, _, _ = _seed(client, "x7b@test.com", "Export Org 7b")
 
     resp = client.get(f"/parties/{party_a}/remaining/export", headers=headers_b)

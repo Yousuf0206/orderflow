@@ -1,3 +1,5 @@
+import sys
+from contextlib import asynccontextmanager
 from urllib.parse import urlparse
 
 from fastapi import FastAPI
@@ -19,8 +21,32 @@ from src.api import (
 )
 from src.core.config import settings
 from src.core.middleware import RequestLoggingMiddleware
+from src.core.migrate import run_migrations
 
-app = FastAPI(title="OrderFlow API", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Bring the schema to head before this process serves anything.
+
+    Nothing else in the pipeline owns that ordering -- see
+    src/core/migrate.py for why, and for how to turn this off if a separate
+    release phase ever takes it over.
+
+    Skipped under pytest, deliberately and defensively. Constructing a
+    TestClient runs this lifespan, and `settings.database_url` is read from
+    backend/.env, which on a developer machine may well point at the hosted
+    database -- so without this guard a test run connects to production and
+    runs `alembic upgrade head` against it. tests/conftest.py also turns
+    auto_migrate off; this is the second lock on the same door, because the
+    cost of a test migrating production is far higher than the cost of a
+    redundant check.
+    """
+    if "pytest" not in sys.modules:
+        run_migrations()
+    yield
+
+
+app = FastAPI(title="OrderFlow API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(

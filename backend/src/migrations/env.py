@@ -24,6 +24,16 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    # src/core/migrate.py passes the connection already holding the advisory
+    # lock. Opening a second one here would run the upgrade on a session that
+    # does not hold the lock, which defeats the point of taking it.
+    provided = config.attributes.get("connection")
+    if provided is not None:
+        context.configure(connection=provided, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

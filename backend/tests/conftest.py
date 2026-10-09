@@ -12,6 +12,23 @@ from src.core.db import Base, get_db
 from src.main import app
 
 
+@pytest.fixture(autouse=True, scope="session")
+def never_migrate_a_real_database():
+    """Tests must not run migrations, least of all against production.
+
+    Constructing a TestClient runs the app's lifespan, which upgrades the
+    schema. `settings.database_url` comes from backend/.env, which on a
+    developer machine commonly points at the hosted database -- so without
+    this, running the test suite connects to production and migrates it.
+
+    Session-scoped and autouse so it applies before any client is built, and
+    so no future test file has to remember. src/main.py skips the lifespan
+    migration under pytest as well; this is the explicit half of that pair.
+    """
+    settings.auto_migrate = False
+    yield
+
+
 @pytest.fixture()
 def client():
     engine = create_engine(
