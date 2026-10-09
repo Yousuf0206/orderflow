@@ -1,38 +1,53 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.1.1 → 1.2.0 (MINOR: five new principles governing the
-  public landing page; no existing principle removed or redefined)
+Version change: 1.2.0 → 1.3.0 (MINOR: four new principles on competitive
+  focus, trust against spreadsheets, phone-first dispatch, and finished work
+  over feature count; no existing principle removed or redefined)
 Added sections:
-  - XV. The Landing Page Shows the Product
-  - XVI. One Primary Action on the Landing Page
-  - XVII. Landing Proof Must Be Real
-  - XVIII. The Landing Page Must Be Fast and Reachable on a Phone
-  - XIX. Screenshots Match the Shipped UI
-  - Launch Gates & Release Workflow: added the "Landing review" gate.
-Modified principles: none redefined. Three pre-existing principles are now
-  also cited from the new landing principles rather than restated:
-  - IX. Trial-First Positioning — XVI applies it to the landing page.
-  - XI. Truth Over Marketing — XVII extends it to social proof.
-  - VIII. Mobile + Desktop Equality — XVIII extends it to the landing page,
-    which is not a core workflow and so was not previously covered.
+  - XX. Own One Job, Visibly
+  - XXI. Beat the Spreadsheet on Trust
+  - XXII. The Phone Is Part of the Product
+  - XXIII. Credibility Over Feature Count
+  - Launch Gates & Release Workflow: added "Phone dispatch evidence" and
+    "Sprint scope check".
+Modified principles: none redefined. Four pre-existing principles are cited
+  from the new ones rather than restated:
+  - II. Remaining Balance is Sacred — XXI adds the user-facing consequence
+    (no human re-entry of a balance), which II did not cover: II forbids the
+    system storing it, not a form asking a person for it.
+  - IV. Simplicity over Features — XXIII addresses breadth (how many things
+    are finished), where IV addresses speed of the core workflow.
+  - VIII. Mobile + Desktop Equality — XXII raises recording a dispatch on a
+    phone from "works" to "comfortable", and makes phone-viewport evidence
+    mandatory rather than optional.
+  - XV. The Landing Page Shows the Product — XX extends the remaining-balance
+    hero from the landing page to the in-app surfaces.
 Removed sections: none
 Deferred items / TODOs: none.
 Source of this amendment:
-  - A scoped "OrderFlow Landing & First Impression" brief supplied on
-    2026-10-08. Its sixth non-negotiable (trial-first messaging on the
-    landing, pricing linked but not sold) is not given its own principle
-    because Principles IX and XIV already carry it; XVI states the landing
-    consequence so a reader of the landing rules does not have to infer it.
+  - A "Competitive Difference Sprint" brief supplied on 2026-10-09. Two of
+    its six difference principles are already law and were deliberately not
+    duplicated: "Show the product before signup" is Principle XV, and
+    "Trial-first, paid later" is Principles IX, XIV, and XVI. Three of its
+    four non-negotiables are likewise already law: core math is II,
+    screenshots matching production is XIX, and the pre-deploy smoke run is
+    XIII. Only its fourth non-negotiable (phone-viewport evidence for the
+    dispatch path) was not covered, and XXII plus the new gate carry it.
+  - The brief's "PWA-level" phrasing is treated as a comfort bar, not as a
+    requirement to ship a web app manifest, service worker, or installable
+    app. No such requirement is created here; one would need its own
+    amendment, and the Constraints section still defers native mobile.
+Capability check performed at amendment time (not a constitution change):
+  - XXI names four capabilities. All four exist today: live remaining
+    (src/services/po_calc.py), party views (frontend PartyDetail),
+    export (backend/src/api/reports.py, frontend Reports.tsx), and overdue
+    visibility (backend/src/api/dashboard.py, statusMeta.ts). XXI therefore
+    protects shipped behaviour rather than promising unbuilt work.
 Templates requiring follow-up:
   - .specify/templates/plan-template.md and spec-template.md do not
     reference principle counts or names directly; re-check during the next
-    /speckit-plan run for alignment with Principles IX–XIX.
-Known gap at amendment time (not a constitution change):
-  - frontend/src/pages/marketing/Landing.tsx is 211 lines and
-    frontend/public/ holds only favicon.svg and og-image.svg, so no product
-    screenshot asset exists yet. Principle XV is therefore not currently
-    satisfied; closing it is feature work, not governance work.
+    /speckit-plan run for alignment with Principles IX–XXIII.
 Note on the file referenced by Principle XIV:
   - Principle XIV points at a feature-scoped path. That is deliberate --
     it is where the evidence lives -- and the accompanying substance
@@ -242,6 +257,63 @@ defect.
 Showing a screen the user will not find, or a feature that does not exist,
 converts a visitor into a disappointed trial user — the most expensive kind.
 
+### XX. Own One Job, Visibly
+OrderFlow's one job is the remaining balance after a partial dispatch, and
+that job MUST be the most visible thing the product says about itself.
+Remaining balance MUST be the hero of the public landing page (per Principle
+XV) and MUST be reachable within one screen of signing in, without a search or
+a filter. No new top-level module — inventory, invoicing, accounting,
+payments, or a comparable adjacent domain — MAY be started while the core loop
+still has open reliability or clarity defects. Extending an adjacent domain
+that is already shipped is permitted; introducing a new one is not.
+
+**Rationale:** a product that is visibly excellent at one job beats a product
+that is invisibly adequate at five. A half-built inventory module does not add
+a reason to buy; it adds a reason to doubt the part that works.
+
+### XXI. Beat the Spreadsheet on Trust
+A user MUST NEVER be asked to type, confirm, or carry forward a remaining
+balance. Every remaining figure a user sees MUST be derived by the system from
+dispatch records (Principle II); no form field, import, or reconciliation step
+MAY accept a balance as human input. The four capabilities that make the
+calculated number trustworthy — live remaining balance, party-level views,
+export of the underlying records, and overdue visibility — are shipped
+behaviour and MUST NOT be removed or degraded without an amendment.
+
+**Rationale:** the competitor is a spreadsheet, and the spreadsheet's single
+worst property is that its totals are only as true as the last person who
+retyped them. Principle II stops the *system* from storing a stale balance;
+this stops the *interface* from asking a human for one.
+
+### XXII. The Phone Is Part of the Product
+Recording a dispatch MUST be comfortable on a mobile browser, not merely
+possible. At 390px width the dispatch form MUST be completable with no
+horizontal scrolling and no pinch-zoom, every interactive control MUST present
+a touch target of at least 44×44 CSS pixels, and the submit action MUST be
+reachable without the on-screen keyboard covering it. Work that changes the
+dispatch path MUST be verified at a phone viewport; desktop-only verification
+does not satisfy this principle. Where a phone layout and a desktop aesthetic
+conflict, the phone layout wins.
+
+**Rationale:** dispatches are recorded at a gate, on a truck, in a yard — on a
+phone, one-handed, in sunlight. Principle VIII asks whether the workflow
+functions on mobile; this asks whether a person standing outside would
+actually use it.
+
+### XXIII. Credibility Over Feature Count
+A release MUST be judged by what in it is finished, not by how much of it
+exists. One dependable capability MUST be preferred over several partial ones,
+and a feature MUST NOT be announced, linked from navigation, or described in
+marketing until its primary path completes end to end through the user
+interface. Features discovered to be partial MUST be hidden or disabled rather
+than shipped visible and incomplete. Social proof MUST be real (Principle
+XVII).
+
+**Rationale:** every visible-but-unfinished surface teaches the user that
+things here do not quite work, and that lesson transfers to the parts that do.
+Hiding an unfinished feature costs a feature; shipping one costs the product's
+credibility.
+
 ## Constraints
 
 - Primary market: SME traders (steel, cement, hardware, building materials).
@@ -280,6 +352,14 @@ converts a visitor into a disappointed trial user — the most expensive kind.
   screenshot still matches the deployed UI (XIX). A change that ships a UI
   change the landing screenshots contradict MUST update those screenshots in
   the same unit of work or record why they may diverge temporarily.
+- **Phone dispatch evidence.** Any change touching the dispatch path — the
+  form, its validation, its submission, or the screens that display the
+  resulting remaining balance — MUST be exercised at a phone viewport before
+  being marked complete, and the review MUST say so. A desktop-only pass is
+  not evidence (Principle XXII).
+- **Sprint scope check.** A pull request that introduces a new top-level
+  module outside the core loop MUST cite why Principle XX permits it. Absent
+  that, the correct outcome is to defer the module, not to review it.
 
 ## Governance
 
@@ -308,4 +388,12 @@ exists. Principles XV, XVIII, and XIX are not phase-scoped — showing the real
 product, loading fast on a phone, and matching the shipped UI apply for as
 long as OrderFlow has a public landing page.
 
-**Version**: 1.2.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-08
+Of the competitive-difference principles, one clause is phase-scoped: Principle
+XX's bar on starting a new top-level module, which is tied to the core loop
+having open reliability or clarity defects and lifts when it does not. The rest
+of XX, and all of XXI, XXII, and XXIII, are not phase-scoped — the one job
+staying visible, never asking a person for a balance, a dispatch being
+comfortable on a phone, and shipping only what is finished are properties of
+the product rather than of this sprint.
+
+**Version**: 1.3.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-09
