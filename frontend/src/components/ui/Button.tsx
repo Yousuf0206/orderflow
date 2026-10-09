@@ -13,12 +13,30 @@ const VARIANT_STYLES: Record<Variant, string> = {
 
 interface Props extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
+  /**
+   * Full width on a phone, natural width from `sm` up.
+   *
+   * For a form's primary action. A dispatch is recorded one-handed at a gate,
+   * and a small inline button is a small target for a thumb.
+   */
+  block?: boolean;
 }
 
-export default function Button({ variant = "primary", className = "", ...props }: Props) {
+/**
+ * `min-h-11` is 44px: the touch-target floor Constitution Principle XXII sets
+ * for the dispatch path. It was 2.5rem (40px), and
+ * tests/e2e/mobile-viewport.spec.ts now measures it.
+ */
+export default function Button({
+  variant = "primary",
+  block = false,
+  className = "",
+  ...props
+}: Props) {
+  const width = block ? "w-full sm:w-auto" : "";
   return (
     <button
-      className={`inline-flex min-h-[2.5rem] items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_STYLES[variant]} ${className}`}
+      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_STYLES[variant]} ${width} ${className}`}
       {...props}
     />
   );
