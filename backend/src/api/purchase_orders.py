@@ -7,13 +7,23 @@ from src.core.tenant import TenantContext, get_tenant_context
 from src.models.purchase_order import PurchaseOrder
 from src.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderOut, PurchaseOrderUpdate
 from src.services.audit import log_action
-from src.services.po_calc import compute
+from src.services.po_calc import VALID_STATUSES, PoCalc, compute, compute_many
 
 router = APIRouter(prefix="/purchase-orders", tags=["purchase-orders"])
 
+# Characters LIKE treats as pattern syntax. A trader's PO numbering scheme
+# routinely contains underscores, and an unescaped one silently matches any
+# single character -- so a search for "PO_1" would also return "PO-1".
+_LIKE_ESCAPE = "\\"
 
-def _to_out(db, po: PurchaseOrder) -> PurchaseOrderOut:
-    calc = compute(db, po)
+
+def _escape_like(term: str) -> str:
+    for ch in (_LIKE_ESCAPE, "%", "_"):
+        term = term.replace(ch, _LIKE_ESCAPE + ch)
+    return term
+
+
+def _out(po: PurchaseOrder, calc: PoCalc) -> PurchaseOrderOut:
     return PurchaseOrderOut(
         id=po.id,
         party_id=po.party_id,
@@ -31,6 +41,10 @@ def _to_out(db, po: PurchaseOrder) -> PurchaseOrderOut:
     )
 
 
+def _to_out(db, po: PurchaseOrder) -> PurchaseOrderOut:
+    return _out(po, compute(db, po))
+
+
 def get_active_po(tenant: TenantContext, po_id: str) -> PurchaseOrder:
     po = (
         tenant.scoped(tenant.db.query(PurchaseOrder), PurchaseOrder)
@@ -46,6 +60,7 @@ def get_active_po(tenant: TenantContext, po_id: str) -> PurchaseOrder:
 def list_purchase_orders(
     party_id: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
+    q: str | None = Query(default=None, description="Partial, case-insensitive PO number"),
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
     tenant: TenantContext = Depends(get_tenant_context),
@@ -60,7 +75,27 @@ def list_purchase_orders(
     if date_to:
         query = query.filter(PurchaseOrder.order_date <= date_to)
 
-    results = [_to_out(tenant.db, po) for po in query.order_by(PurchaseOrder.due_date).all()]
+    # Searched where the rows are selected, not by hiding rows already sent to
+    # the browser, so a count the user can see is a count the server produced.
+    term = (q or "").strip()
+    if term:
+        query = query.filter(
+            PurchaseOrder.po_number.ilike(f"%{_escape_like(term)}%", escape=_LIKE_ESCAPE)
+        )
+
+    # An unrecognised status returns nothing rather than everything. Ignoring
+    # it would make the filter lie: the user asked to narrow and the list came
+    # back wider than they asked for.
+    if status_filter is not None and status_filter not in VALID_STATUSES:
+        return []
+
+    pos = query.order_by(PurchaseOrder.due_date).all()
+    # One grouped aggregate for the whole page instead of one per row. Status
+    # is derived (it depends on the organization's due_soon_days), so it is
+    # filtered here rather than in SQL -- a second definition of status in SQL
+    # is what would let the dashboard's overdue count and this list disagree.
+    calcs = compute_many(tenant.db, pos)
+    results = [_out(po, calcs[po.id]) for po in pos]
     if status_filter:
         results = [r for r in results if r.status == status_filter]
     return results
