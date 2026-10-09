@@ -9,6 +9,13 @@
       content="Track purchase orders and partial dispatches live. OrderFlow keeps remaining balances accurate in real time for trading companies and material dealers."
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Add to Home Screen. Manifest and icons only: no service worker, by
+         decision. Constitution Principle II forbids a remaining balance that
+         can drift from its dispatch rows, and an offline cache is exactly such
+         a store (specs/004-trader-difference-kit/research.md R11). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#4f46e5" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="OrderFlow" />
     <meta property="og:title" content="OrderFlow — Purchase order & dispatch tracking" />
