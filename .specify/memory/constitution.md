@@ -1,6 +1,36 @@
 <!--
 Sync Impact Report
 ==================
+Version change: 1.3.0 → 1.4.0 (MINOR: four new principles closing gaps that
+  a production outage and a near-miss exposed; no principle removed or
+  redefined)
+Added sections:
+  - XXIV. Verify the Deployed System, Not Only the Build
+  - XXV. An Empty Export Still Says What It Is
+  - XXVI. A Phone Claim Needs a Phone
+  - XXVII. Tests Never Touch Production
+  - Launch Gates: added "Deployed verification", "Schema before code",
+    "Real-device evidence" and "Test isolation".
+  - Mission restated in the "credible trial" terms of the 2026-10-10 brief.
+Source of this amendment:
+  - An "OrderFlow Completion (Credible Trial)" brief supplied on 2026-10-10,
+    following a production outage the same day.
+  - Three of its seven non-negotiables were already law and are deliberately
+    not duplicated: remaining balance calculated rather than typed is II and
+    XXI; no paid-plan push until Stripe is proven is IX and XIV; and the
+    smoke-before-announce half of its first item is XIII. What XIII did not
+    cover -- and what actually failed -- is verifying the system after it is
+    deployed, which XXIV now carries.
+  - Its fifth item names a task id (T022). XXVI states the substance instead,
+    because a task id stops meaning anything once that feature ships while
+    the rule it stands for does not.
+Known gaps at amendment time (not constitution changes):
+  - XXVI is unsatisfied today: no dispatch has been recorded on a real
+    device, so no release may currently be pitched on mobile dispatch.
+  - XXIV is unsatisfied today: nothing yet runs a smoke check against the
+    deployed system after a deploy. Closing it is feature work.
+Previous report (v1.2.0 → v1.3.0) follows.
+==================
 Version change: 1.2.0 → 1.3.0 (MINOR: four new principles on competitive
   focus, trust against spreadsheets, phone-first dispatch, and finished work
   over feature count; no existing principle removed or redefined)
@@ -61,10 +91,10 @@ Note on the file referenced by Principle XIV:
 OrderFlow is a multi-tenant SaaS for traders and dealers to track Purchase
 Orders, partial dispatches, and remaining balances in real time.
 
-**Current mission (free trial / private beta):** make OrderFlow reliable
-enough that a real trader can sign up, track parties, POs, and partial
-dispatches, and trust the remaining balance. Paid billing is deferred until
-that baseline is solid.
+**Current mission (free trial / private beta):** a stranger can sign up, log a
+partial dispatch on a phone, export remaining balances, and invite a teammate
+— without a spreadsheet, and without a 500 on signup. Paid billing is deferred
+until that baseline is solid.
 
 ## Core Principles
 
@@ -314,6 +344,75 @@ things here do not quite work, and that lesson transfers to the parts that do.
 Hiding an unfinished feature costs a feature; shipping one costs the product's
 credibility.
 
+### XXIV. Verify the Deployed System, Not Only the Build
+After any production deploy, signup and login MUST be exercised against the
+deployed system before it is announced, linked, or relied on. A pass obtained
+locally, in CI, or against any database other than production does NOT satisfy
+this: it verifies the build, and the build is not what users reach.
+
+Schema MUST reach the running code, not trail it. A deploy whose migrations
+have not been applied MUST be treated as an outage in progress, not as a
+pending task, and the ordering MUST be guaranteed by the system rather than by
+anyone remembering.
+
+**Rationale:** on 2026-10-09 a migration adding a column was committed, the
+code was deployed, and the migration was never applied to production. Every
+insert and select touching that table returned 500 — signup, and through the
+session lookup, every authenticated request — behind a login that still
+returned 200, so users signed in and watched every screen fail. Principle XIII
+was satisfied: the smoke path had been exercised. It had been exercised against
+a local database, which is exactly the hole this closes.
+
+### XXV. An Empty Export Still Says What It Is
+A file produced by an export MUST be self-describing even when it contains no
+data. Column headers MUST be declared by the report rather than inferred from
+its first row, so a report with no rows still downloads as a named, empty
+table. An export that opens as a blank sheet MUST be treated as a defect.
+
+**Rationale:** "Overdue Orders" with nothing overdue downloaded as two bytes —
+a bare newline. Opened in a spreadsheet it is indistinguishable from a broken
+export, so the one thing it must communicate, that there is nothing overdue, is
+the one thing it does not. This is Principle XII applied to files: a result
+that neither shows data nor explains its absence is a silent failure.
+
+### XXVI. A Phone Claim Needs a Phone
+Recording a dispatch MUST be verified on a real mobile device — a physical
+phone, not a viewport, an emulator, or a device-mode window — at least once per
+release train. The verification MUST record the device, the browser, and
+whether the dispatch completed without zooming or panning.
+
+No release MAY be announced, pitched, or described as supporting mobile
+dispatch until that verification has been done for it. Automated phone-viewport
+checks satisfy Principle XXII; they do NOT satisfy this one and MUST NOT be
+cited as if they did.
+
+**Rationale:** a viewport models width. It does not model a thumb, a real
+on-screen keyboard covering the submit button, a browser's address bar moving
+on scroll, or sunlight. Those are the conditions under which this product is
+actually used, and a claim about them can only be earned by meeting them. This
+is Principle XXIII applied to the specific claim most likely to be made before
+it is true.
+
+### XXVII. Tests Never Touch Production
+No local or automated test run MAY read from or write to a production database
+by default. Test configuration MUST NOT fall through to production
+credentials: where a suite resolves its connection from a developer's
+environment, it MUST assert the target is a local database and refuse
+otherwise, and that refusal MUST be the default rather than an opt-in.
+
+Any code path that runs automatically at application startup — schema
+migration in particular — MUST be inert under test, and that MUST be enforced
+in the test harness rather than left to each test to remember.
+
+**Rationale:** this project's production database already holds several
+hundred machine-generated organizations from suites that resolved their
+connection from a developer's `.env`. On 2026-10-10 a startup-migration change
+went further and had the test suite run `alembic upgrade head` against
+production — schema changes to live customer data as a side effect of running
+`pytest`. The danger is not carelessness; it is that the default path leads
+there, and a default that can destroy real data is a defect regardless of who
+is at the keyboard.
+
 ## Constraints
 
 - Primary market: SME traders (steel, cement, hardware, building materials).
@@ -360,6 +459,20 @@ credibility.
 - **Sprint scope check.** A pull request that introduces a new top-level
   module outside the core loop MUST cite why Principle XX permits it. Absent
   that, the correct outcome is to defer the module, not to review it.
+- **Deployed verification.** After a production deploy, signup and login MUST
+  be exercised against the deployed system and the result recorded, before any
+  announcement or link (Principle XXIV). A local or CI pass is not this.
+- **Schema before code.** Any change containing a migration MUST state how that
+  migration reaches production ahead of the code that needs it. "It will be run
+  manually" is not an answer unless someone is named and it is done in the same
+  unit of work.
+- **Real-device evidence.** A release train MUST carry at least one recorded
+  real-device dispatch before anything in it is pitched on mobile use
+  (Principle XXVI). The record names the device and browser.
+- **Test isolation.** Any change touching test configuration, application
+  startup, or database connection resolution MUST state what stops a test run
+  reaching production (Principle XXVII), and the answer MUST be a default
+  rather than a convention.
 
 ## Governance
 
@@ -388,6 +501,18 @@ exists. Principles XV, XVIII, and XIX are not phase-scoped — showing the real
 product, loading fast on a phone, and matching the shipped UI apply for as
 long as OrderFlow has a public landing page.
 
+Principles XXIV through XXVII are not phase-scoped. Verifying the deployed
+system, exports that describe themselves when empty, earning a phone claim on a
+phone, and keeping tests away from production are properties of operating the
+product at all, not of this beta. If anything, they get stricter once there are
+customers to lose rather than beta users to apologise to.
+
+Two of them are unsatisfied as of this amendment, and that is recorded rather
+than smoothed over: nothing yet smoke-checks the deployed system after a deploy
+(XXIV), and no dispatch has been recorded on a real device (XXVI), so no
+release may currently be pitched on mobile dispatch. A principle the project
+does not yet meet is still the standard; the gap is work, not an exemption.
+
 Of the competitive-difference principles, one clause is phase-scoped: Principle
 XX's bar on starting a new top-level module, which is tied to the core loop
 having open reliability or clarity defects and lifts when it does not. The rest
@@ -396,4 +521,4 @@ staying visible, never asking a person for a balance, a dispatch being
 comfortable on a phone, and shipping only what is finished are properties of
 the product rather than of this sprint.
 
-**Version**: 1.3.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-09
+**Version**: 1.4.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-10
