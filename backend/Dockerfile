@@ -2,11 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-RUN pip install --no-cache-dir .
-
+# src/ must be present before the install: pyproject.toml finds its packages
+# there, and setuptools refuses to build without it.
+COPY pyproject.toml alembic.ini ./
 COPY src ./src
-COPY alembic.ini ./
+RUN pip install --no-cache-dir .
 
 EXPOSE 8000
 
