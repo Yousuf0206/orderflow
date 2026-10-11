@@ -27,6 +27,12 @@ dev = [
     "ruff>=0.7",
 ]
 
+[tool.pytest.ini_options]
+# Tests import `src.*` and `tests.*` from backend/. The editable install only
+# exposes the packages *inside* src/, so without this CI failed to load
+# conftest.py ("No module named 'src'") on every run since at least 2026-10-09.
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 110
 

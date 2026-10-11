@@ -92,8 +92,8 @@ Tests are requested by the spec (FR-014), so test tasks are included.
 ## Phase 5: Release gate (production evidence required)
 
 - [ ] T049 Rehearse 0003 on a restored copy of production per `quickstart.md` §2 (`verify_0003 snapshot` → upgrade → `compare` = 0 differences); record operator, date, counts in `docs/releases/006-multi-item.md`
-- [ ] T050 Production migrate via the normal deploy path (startup migrator with advisory lock); record the deploy id and that the app started (no migrate failure) in `docs/releases/006-multi-item.md`
-- [ ] T051 Run `smoke_deployed.py` against production; exit 0 on the multi-line path; paste output into `docs/releases/006-multi-item.md`
+- [X] T050 Production migrate via the normal deploy path (startup migrator with advisory lock); record the deploy id and that the app started (no migrate failure) in `docs/releases/006-multi-item.md`
+- [X] T051 Run `smoke_deployed.py` against production; exit 0 on the multi-line path; paste output into `docs/releases/006-multi-item.md`
 - [ ] T052 Manual on production: create a 3-line PO, record one partial truck on 2 lines, verify each line's remaining; also open one pre-006 PO and confirm one line and unchanged remaining. Record in the release doc
 - [ ] T053 Manual: download remaining CSV from production, open in Google Sheets, confirm one row per line and numeric qty columns; record in the release doc
 - [ ] T054 Decision recorded in the release doc: merge T044 copy and send/update the beta announcement for multi-item — only if T051–T053 are recorded (XXXII)

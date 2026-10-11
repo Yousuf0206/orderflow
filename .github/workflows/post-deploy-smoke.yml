@@ -38,9 +38,16 @@ jobs:
 
       # No pip install: the check is standard library only, deliberately, so
       # it still runs when the backend package is the thing under suspicion.
+      # The production alias, not the event's per-deployment URL. Those URLs
+      # sit behind Vercel Authentication and answer 401 at the health step,
+      # which failed every run from 2026-10-10 on without checking anything.
+      # The alias is also what users reach, which is the point (XXIV).
       - name: Check the deployed system
+        env:
+          PRODUCTION_URL: https://purchaseorderflow.vercel.app
         run: |
-          URL="${{ github.event.inputs.base_url || github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}"
+          URL="${{ github.event.inputs.base_url }}"
+          URL="${URL:-$PRODUCTION_URL}"
           if [ -z "$URL" ]; then
             echo "::error::No deployment URL found in the event payload"
             exit 1
