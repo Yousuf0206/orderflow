@@ -18,3 +18,7 @@ class Organization(Base, TimestampMixin):
     plan_tier: Mapped[str] = mapped_column(String(20), default="trial")
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     is_suspended: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Set when the organization's sole owner deletes their account. Every
+    # member loses access at once; the purge job removes it after purge_after.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    purge_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

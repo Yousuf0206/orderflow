@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from src.core.config import settings
 from src.core.db import get_db
 from src.models.membership import Membership
+from src.models.organization import Organization
 from src.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -77,14 +78,22 @@ def get_current_user(
     if payload.get("type") != "access":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong token type")
     user = db.get(User, payload["sub"])
-    if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    # A deleted account stops working on the request after deletion, whatever
+    # tokens are still in circulation (spec 007 FR-012).
+    if user is None or user.deleted_at is not None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account is no longer active")
 
     membership = None
     if not user.is_super_admin:
         membership = (
             db.query(Membership)
-            .filter(Membership.user_id == user.id, Membership.accepted_at.isnot(None))
+            .join(Organization, Organization.id == Membership.organization_id)
+            .filter(
+                Membership.user_id == user.id,
+                Membership.accepted_at.isnot(None),
+                Membership.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
+            )
             .first()
         )
         if membership is None:

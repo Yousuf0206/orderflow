@@ -1,3 +1,4 @@
+from src.models.account_purge import AccountPurgeRecord
 from src.models.audit_log import AuditLogEntry
 from src.models.dispatch import Dispatch, DispatchLine
 from src.models.membership import Membership
@@ -9,6 +10,7 @@ from src.models.subscription import Subscription
 from src.models.user import User
 
 __all__ = [
+    "AccountPurgeRecord",
     "AuditLogEntry",
     "Dispatch",
     "DispatchLine",

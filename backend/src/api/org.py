@@ -49,7 +49,7 @@ def list_members(
     rows = (
         tenant.db.query(Membership, User)
         .join(User, User.id == Membership.user_id)
-        .filter(Membership.organization_id == tenant.organization_id)
+        .filter(Membership.organization_id == tenant.organization_id, Membership.deleted_at.is_(None))
         .all()
     )
     return [

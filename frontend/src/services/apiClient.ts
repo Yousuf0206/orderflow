@@ -60,6 +60,11 @@ export function describeApiError(err: unknown, fallback: string): string {
   // the one case where the raw error text ("AbortError") is actively misleading
   // to a non-technical reader, so it never reaches the fallback.
   if (err instanceof NetworkError) {
+    // The phone knows it has no connection; say so rather than blaming the
+    // server. Nothing is queued for later (constitution XXXVII).
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return "You're offline. OrderFlow needs a connection to load or save anything.";
+    }
     return err.timedOut
       ? "This is taking longer than expected. Check your connection and try again."
       : "Couldn't reach the server. Check your connection and try again.";
@@ -175,5 +180,6 @@ export const api = {
     request<T>(path, { method: "POST", body: body !== undefined ? JSON.stringify(body) : undefined }),
   patch: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "PATCH", body: body !== undefined ? JSON.stringify(body) : undefined }),
-  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
+  delete: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "DELETE", body: body !== undefined ? JSON.stringify(body) : undefined }),
 };

@@ -12,6 +12,7 @@ from src.api import (
     billing,
     dashboard,
     dispatches,
+    internal,
     notifications,
     org,
     parties,
@@ -19,7 +20,7 @@ from src.api import (
     purchase_orders,
     reports,
 )
-from src.core.config import settings
+from src.core.config import NATIVE_APP_ORIGINS, settings
 from src.core.middleware import RequestLoggingMiddleware
 from src.core.migrate import run_migrations
 
@@ -51,7 +52,10 @@ app = FastAPI(title="OrderFlow API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    # The native apps are part of the product, not of a deployment, so their
+    # origins are always allowed even when CORS_ORIGINS is set per environment
+    # (spec 007, research R3).
+    allow_origins=[*settings.cors_origins, *NATIVE_APP_ORIGINS],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,6 +74,7 @@ app.include_router(billing.router)
 app.include_router(plans.router)
 app.include_router(audit_log.router)
 app.include_router(admin.router)
+app.include_router(internal.router)
 
 
 @app.get("/health")

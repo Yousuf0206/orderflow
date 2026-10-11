@@ -178,8 +178,8 @@ def test_every_record_moves_and_no_balance_changes(pre_006_database):
 
 
 def test_upgrading_again_is_a_no_op(pre_006_database):
-    command.upgrade(_alembic_config(), "head")
-    command.upgrade(_alembic_config(), "head")
+    command.upgrade(_alembic_config(), "0003")
+    command.upgrade(_alembic_config(), "0003")
     with pre_006_database.connect() as conn:
         assert conn.execute(text("SELECT COUNT(*) FROM purchase_order_lines")).scalar() == 4
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar() == "0003"

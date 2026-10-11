@@ -69,7 +69,7 @@ def get_tenant_context(
     if current.organization_id is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "No organization context")
     org = db.get(Organization, current.organization_id)
-    if org is None:
+    if org is None or org.deleted_at is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Organization not found")
     if org.is_suspended:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Organization access is suspended")

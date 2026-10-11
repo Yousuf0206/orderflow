@@ -36,7 +36,11 @@ def count_users(db: Session, organization_id: str) -> int:
     Billing -- if the two counted differently, the UI could say "2 of 3" to
     someone the server is already refusing.
     """
-    return db.query(Membership).filter(Membership.organization_id == organization_id).count()
+    return (
+        db.query(Membership)
+        .filter(Membership.organization_id == organization_id, Membership.deleted_at.is_(None))
+        .count()
+    )
 
 
 def count_active_pos(db: Session, organization_id: str) -> int:

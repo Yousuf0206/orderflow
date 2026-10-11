@@ -30,3 +30,6 @@ class Membership(Base, TimestampMixin):
     invitation_email_sent_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), default=None
     )
+    # Set when the member deletes their account. Every membership query that
+    # decides access or counts members MUST exclude these.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)

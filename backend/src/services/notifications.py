@@ -49,9 +49,15 @@ def evaluate_and_notify(db: Session) -> int:
             continue
 
         org = db.get(Organization, po.organization_id)
+        if org is None or org.deleted_at is not None:
+            continue
         recipients = (
             db.query(Membership)
-            .filter(Membership.organization_id == po.organization_id, Membership.role.in_(["owner", "manager"]))
+            .filter(
+                Membership.organization_id == po.organization_id,
+                Membership.role.in_(["owner", "manager"]),
+                Membership.deleted_at.is_(None),
+            )
             .all()
         )
         for membership in recipients:

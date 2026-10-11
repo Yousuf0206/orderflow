@@ -15,7 +15,11 @@ def list_organizations(db: Session = Depends(get_db)) -> list[dict]:
     orgs = db.query(Organization).all()
     result = []
     for org in orgs:
-        user_count = db.query(Membership).filter(Membership.organization_id == org.id).count()
+        user_count = (
+            db.query(Membership)
+            .filter(Membership.organization_id == org.id, Membership.deleted_at.is_(None))
+            .count()
+        )
         po_count = (
             db.query(PurchaseOrder)
             .filter(PurchaseOrder.organization_id == org.id, PurchaseOrder.deleted_at.is_(None))

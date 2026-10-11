@@ -43,9 +43,30 @@ export default function PrivacyPolicy() {
         page before adding any other processor.
       </p>
 
+      <h2>Mobile apps</h2>
+      <p>
+        The OrderFlow apps for iPhone, iPad, and Android show the same service as the website and send
+        your data only to OrderFlow. Your sign-in session is kept in your phone's secure storage
+        (Keychain on iOS, Keystore on Android) and removed when you sign out. The apps do not track you,
+        show ads, or store your business records on the phone.
+      </p>
+
+      <h2>Deleting your account</h2>
+      <p>
+        You can delete your account at any time from <strong>Settings → Delete account</strong>, on the
+        website or in the app. Your access ends immediately. If you are the only owner of an
+        organization, that organization is deleted too and every member loses access; otherwise only
+        your own login is removed and the organization's records stay with the rest of the team.
+      </p>
+      <p>
+        Deleted data is kept for <strong>30 days</strong> so a mistaken deletion can be reversed, then
+        permanently removed. We keep only a record that a deletion took place, with no names, email
+        addresses, or business records.
+      </p>
+
       <h2>Your choices</h2>
       <p>
-        You can export your data, request account deletion, or contact us with questions at{" "}
+        You can export your data, delete your account as described above, or contact us with questions at{" "}
         <a href="mailto:privacy@orderflow.example" className="underline">
           privacy@orderflow.example
         </a>

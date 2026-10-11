@@ -10,6 +10,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  UserX,
   Wallet,
   X,
 } from "lucide-react";
@@ -42,6 +43,8 @@ const SETTINGS_ITEMS = [
     visible: (caps: PermissionsState) => caps.canManageTeamMembers,
   },
   { to: "/settings/company", label: "Company", icon: Settings, visible: () => true },
+  // Every role: anyone with a login may delete it (spec 007 FR-012).
+  { to: "/settings/account", label: "Delete account", icon: UserX, visible: () => true },
   {
     to: "/billing",
     label: "Billing",

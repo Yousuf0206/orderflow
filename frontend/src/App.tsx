@@ -24,6 +24,7 @@ import PurchaseOrderForm from "./pages/purchase-orders/PurchaseOrderForm";
 import PurchaseOrdersList from "./pages/purchase-orders/PurchaseOrdersList";
 import Reports from "./pages/reports/Reports";
 import CompanySettings from "./pages/settings/CompanySettings";
+import DeleteAccount from "./pages/settings/DeleteAccount";
 import TeamMembers from "./pages/settings/TeamMembers";
 
 export default function App() {
@@ -86,6 +87,7 @@ export default function App() {
         <Route path="/audit-log" element={<AuditLog />} />
         <Route path="/settings/company" element={<CompanySettings />} />
         <Route path="/settings/team" element={<TeamMembers />} />
+        <Route path="/settings/account" element={<DeleteAccount />} />
         <Route path="/billing" element={<Billing />} />
         <Route path="/admin" element={<SuperAdmin />} />
       </Route>

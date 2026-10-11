@@ -13,7 +13,7 @@ import { PermissionsUnconfirmed, RoleRequired } from "../../components/ui/RoleNo
 import { KpiSkeletonRow, Skeleton, TableSkeleton } from "../../components/ui/Skeleton";
 import StatCard from "../../components/ui/StatCard";
 import { usePermissions } from "../../hooks/usePermissions";
-import { api, describeApiError } from "../../services/apiClient";
+import { api, describeApiError, NetworkError } from "../../services/apiClient";
 import {
   type Dispatch,
   type DispatchCreateResponse,
@@ -36,6 +36,8 @@ export default function PurchaseOrderDetail() {
   const [overLineIds, setOverLineIds] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // True while re-reading the order after a save whose outcome is unknown.
+  const [verifying, setVerifying] = useState(false);
 
   const {
     data: po,
@@ -101,12 +103,35 @@ export default function PurchaseOrderDetail() {
       queryClient.invalidateQueries({ queryKey: ["purchase-order", id] });
       queryClient.invalidateQueries({ queryKey: ["dispatches", id] });
     } catch (err) {
+      if (err instanceof NetworkError) {
+        // The request may have reached the server before the connection
+        // dropped, so "try again" could record the truck twice. Say we don't
+        // know, and re-read the order before another submit is allowed.
+        setSubmitError(
+          "We couldn't confirm this dispatch was saved. Check the history below before recording it again.",
+        );
+        setVerifying(true);
+        try {
+          await Promise.all([refetchPo(), refetchDispatches()]);
+        } finally {
+          setVerifying(false);
+        }
+        return;
+      }
       // Without this the dispatch just vanished: the spinner stopped, the form
       // kept its values, and nothing said whether the dispatch was recorded.
       setSubmitError(describeApiError(err, "We couldn't record that dispatch. Please try again."));
     } finally {
       setSaving(false);
     }
+  }
+
+  // On a phone the on-screen keyboard covers the lower half of the screen.
+  // Keep the field being typed in visible above it; the submit stays in flow
+  // below the fields rather than pinned where the keyboard sits (research R2).
+  function keepInView(e: React.FocusEvent<HTMLInputElement>) {
+    const el = e.currentTarget;
+    window.setTimeout(() => el.scrollIntoView?.({ block: "center", behavior: "smooth" }), 250);
   }
 
   return (
@@ -267,6 +292,7 @@ export default function PurchaseOrderDetail() {
                     inputMode="decimal"
                     value={qtys[line.id] ?? ""}
                     onChange={(e) => updateQty(line.id, e.target.value)}
+                    onFocus={keepInView}
                     aria-invalid={overLineIds.has(line.id) || undefined}
                   />
                 </FormField>
@@ -278,8 +304,8 @@ export default function PurchaseOrderDetail() {
             </FormField>
             {/* Full width on a phone, and last in document flow so an
                 on-screen keyboard over a field above does not cover it. */}
-            <Button type="submit" disabled={saving} block className="sm:col-span-2">
-              {saving ? "Saving..." : "Add Dispatch"}
+            <Button type="submit" disabled={saving || verifying} block className="sm:col-span-2">
+              {verifying ? "Checking..." : saving ? "Saving..." : "Add Dispatch"}
             </Button>
           </form>
         </div>

@@ -34,3 +34,9 @@ class PasswordResetConfirm(BaseModel):
 class InviteAcceptRequest(BaseModel):
     token: str
     password: str = Field(min_length=8)
+
+
+class AccountDeleteRequest(BaseModel):
+    # Names of the organizations the deletion closes, echoed from the preview.
+    # Empty for a member whose organizations all carry on.
+    confirm_organization_names: list[str] = Field(default_factory=list)

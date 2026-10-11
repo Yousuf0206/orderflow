@@ -1,5 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Bundled native apps (spec 007): iOS serves from capacitor://localhost, Android
+# from https://localhost. Added to CORS whatever CORS_ORIGINS says.
+NATIVE_APP_ORIGINS = ("capacitor://localhost", "https://localhost")
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -37,6 +41,9 @@ class Settings(BaseSettings):
     due_soon_days: int = 3
 
     cors_origins: list[str] = ["http://localhost:5173"]
+    # Shared with Vercel Cron, which sends it as a bearer token. Empty means
+    # scheduled endpoints refuse to run.
+    cron_secret: str = ""
 
     # Run `alembic upgrade head` at startup, before serving. On by default
     # because nothing else in this pipeline owns that ordering: Vercel deploys

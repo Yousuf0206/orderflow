@@ -207,6 +207,22 @@ describe("multi-line detail and dispatch", () => {
     expect(bodiesSentTo(fetchMock, "/dispatches")).toHaveLength(0);
   });
 
+  it("a save whose outcome is unknown says so and re-reads the order instead of inviting a retry", async () => {
+    let poReads = 0;
+    renderDetail((url, init) => {
+      if (url.includes("/dispatches") && init?.method === "POST") throw new TypeError("Failed to fetch");
+      if (url.includes("/purchase-orders/") && !url.includes("/dispatches")) poReads += 1;
+      return undefined;
+    });
+    fireEvent.change(await screen.findByLabelText(/steel bar \(tonne\)/i), { target: { value: "20" } });
+    const readsBefore = poReads;
+    fireEvent.click(screen.getByRole("button", { name: /add dispatch/i }));
+
+    expect(await screen.findByText(/couldn't confirm this dispatch was saved/i)).toBeInTheDocument();
+    await waitFor(() => expect(poReads).toBeGreaterThan(readsBefore));
+    expect(screen.queryByText(/please try again/i)).not.toBeInTheDocument();
+  });
+
   it("marks only the overflowing line and confirms on request", async () => {
     let calls = 0;
     const fetchMock = renderDetail((url, init) => {

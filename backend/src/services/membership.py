@@ -21,6 +21,7 @@ def assert_not_last_owner(db: Session, membership: Membership) -> None:
             Membership.organization_id == membership.organization_id,
             Membership.role == "owner",
             Membership.id != membership.id,
+            Membership.deleted_at.is_(None),
         )
         .count()
     )

@@ -19,6 +19,7 @@ from src.models.organization import Organization
 from src.models.subscription import PLAN_LIMITS, Subscription
 from src.models.user import User
 from src.schemas.auth import (
+    AccountDeleteRequest,
     InviteAcceptRequest,
     LoginRequest,
     PasswordResetConfirm,
@@ -27,6 +28,7 @@ from src.schemas.auth import (
     SignupRequest,
     TokenPair,
 )
+from src.services import account_deletion
 from src.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -84,10 +86,52 @@ def me(current: CurrentUser = Depends(get_current_user), db: Session = Depends(g
     }
 
 
+@router.get("/account/deletion-preview")
+def deletion_preview(current: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """What deleting this account would do, for the confirmation screen."""
+    plan = account_deletion.plan_deletion(db, current.user)
+    return {
+        "role_effect": plan.role_effect,
+        "organizations_deleted": [
+            {"id": o.id, "name": o.name, "member_count": account_deletion.member_count(db, o.id)}
+            for o in plan.organizations_deleted
+        ],
+        "organizations_left": [{"id": o.id, "name": o.name} for o in plan.organizations_left],
+        "purge_after_days": account_deletion.PURGE_AFTER_DAYS,
+    }
+
+
+@router.delete("/account")
+def delete_account(
+    payload: AccountDeleteRequest,
+    current: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Soft-delete the caller's account and revoke access at once (spec 007 FR-012).
+
+    An owner closing organizations must type each one's name: the step is the
+    one that locks every member out, so it is never a single tap.
+    """
+    plan = account_deletion.plan_deletion(db, current.user)
+    expected = sorted(o.name.strip() for o in plan.organizations_deleted)
+    given = sorted(n.strip() for n in payload.confirm_organization_names)
+    if expected != given:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Type the name of each organization that will be deleted to confirm.",
+        )
+    user = current.user
+    account_deletion.delete_account(db, user)
+    db.commit()
+    return {"deleted_at": user.deleted_at.isoformat(), "purge_after": user.purge_after.isoformat()}
+
+
 @router.post("/login", response_model=TokenPair)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenPair:
     user = db.query(User).filter(User.email == payload.email).first()
-    if user is None or not verify_password(payload.password, user.password_hash):
+    # Same message for a deleted account as for a wrong password: whether an
+    # address once had an account is not something to disclose.
+    if user is None or user.deleted_at is not None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid email or password")
     return TokenPair(
         access_token=create_token(user.id, "access"),
@@ -101,8 +145,8 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenPair
     if data.get("type") != "refresh":
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Wrong token type")
     user = db.get(User, data["sub"])
-    if user is None:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found")
+    if user is None or user.deleted_at is not None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "This account is no longer active")
     return TokenPair(
         access_token=create_token(user.id, "access"),
         refresh_token=create_token(user.id, "refresh"),
