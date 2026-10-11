@@ -49,6 +49,32 @@ Parties, Purchase Orders, and Dispatches MUST use soft deletes
 excluded from normal views and calculations (including Remaining Balance)
 while remaining available for audit and recovery.
 
+**The one exception: account deletion the user asked for.** When a user deletes
+their own account, or an owner deletes their organization, the affected records
+MAY be permanently removed — and then MUST be — but only under all of these
+conditions:
+
+- The click itself MUST only soft-delete and revoke access. Nothing is removed
+  at the moment of deletion.
+- Permanent removal MUST be performed by a scheduled purge job, no earlier than
+  30 days after the deletion, so a mistaken or malicious deletion can still be
+  recovered during that window.
+- The purge MUST remove only what that deletion covered: a non-owner's login
+  and memberships, or an owner-deleted organization and its records. It MUST
+  NOT touch an organization that still has an active owner.
+- The 30-day window MUST be stated to the user at the point of deletion and in
+  the privacy policy.
+- Each purge MUST leave a minimal record that it happened (what kind of
+  account, when deleted, when purged) containing no business data.
+
+No other path MAY hard-delete business data. Deleting a single party, order,
+or dispatch remains a soft delete with no purge.
+
+**Rationale:** soft deletes protect traders from losing history by accident.
+They were never meant to keep a departed customer's data forever against their
+wishes, which app stores and privacy law forbid. The 30-day window keeps the
+protection against accidents; the purge honours the request.
+
 ### VIII. Mobile + Desktop Equality
 Core workflows (creating a PO, recording a dispatch, viewing remaining
 balance) MUST work well on both desktop and mobile viewports. A workflow
@@ -406,12 +432,79 @@ likely to be made before it is true. A trader who signs up because the page says
 "multi-item" and finds one material per order has been lied to once, and will
 assume the remaining balances are lying too.
 
+### XXXIII. One Product, One API
+Native apps for iOS and Android MUST be clients of the same API the web
+application uses. No business rule — remaining balance, status, over-dispatch,
+plan limits, permissions — MAY be implemented separately in an app; every
+figure an app shows MUST come from the server, computed as Principles II and
+XXIX require. The apps MUST NOT widen the product beyond order movement and
+remaining balance: no inventory, stock on hand, or other domain enters through
+the app that does not exist on the web (Principle XX).
+
+**Rationale:** two implementations of a remaining balance will eventually show
+two numbers, and a trader who sees one figure on a phone and another on a
+laptop trusts neither. The app is a new way to reach the product, not a second
+product.
+
+### XXXIV. iOS and Android Ship Together
+An app release MUST ship on iOS and Android together, with the same features.
+A capability present on one platform and missing on the other MUST NOT be
+released, announced, or described in store listings. Before any store
+submission — including TestFlight external testing or a Play testing track
+offered to customers — the release MUST be exercised on at least one physical
+iPhone and one physical Android phone, recording device, OS version, and
+whether recording a partial dispatch completed (Principle XXVI). Emulators and
+simulators do not satisfy this.
+
+**Rationale:** traders in this market carry both platforms, often within one
+yard. A product that works for the clerk on Android and not the owner on an
+iPhone is a broken product in that business, and only a real device shows the
+keyboard, thumb, and sunlight conditions XXVI exists for.
+
+### XXXV. The Mobile Web Is the App's Floor
+Where an app wraps the web application (a WebView or Capacitor-style shell),
+the mobile web experience MUST already meet Principle XXII on its own: the
+dispatch form, including one quantity per line on a multi-item order, MUST be
+completable with a thumb, with the on-screen keyboard open, at 390px and 320px,
+with no horizontal scrolling. A shell MUST NOT be used to hide a mobile web
+defect, and a mobile web regression MUST be treated as an app regression.
+
+**Rationale:** a shell inherits every flaw of the page inside it, then charges
+for it with a store rating. Fixing the page fixes the app and the browser at
+once; fixing only the shell fixes neither.
+
+### XXXVI. Session Tokens Live in Secure Storage
+In a native app, authentication tokens MUST be stored in the platform's secure
+storage — Keychain on iOS, Keystore-backed storage on Android — whenever the
+shell provides access to it. Plain `localStorage` or unencrypted preferences
+MUST NOT be the sole store for tokens in an app build. Signing out MUST clear
+the secure store as completely as the web clears `localStorage`.
+
+**Rationale:** a phone is lost, shared, and handed to a driver far more often
+than a laptop. A token in readable storage on that phone is the organization's
+data in a stranger's pocket (Principle I).
+
+### XXXVII. No Offline Claim Without Offline
+OrderFlow MUST NOT be described — in a store listing, the landing page, beta
+messaging, or the app itself — as working offline, syncing later, or usable
+without a connection until offline recording is built, tested, and verified on
+real devices with the connection removed. Until then, an app that loses its
+connection MUST say so plainly and MUST NOT appear to save a dispatch it has
+not sent (Principle XII).
+
+**Rationale:** a dispatch that looked saved at the gate and never reached the
+server is a wrong remaining balance discovered days later. That is worse than
+no app at all, and it is exactly what an untested "works offline" promise
+produces.
+
 ## Constraints
 
 - Primary market: SME traders (steel, cement, hardware, building materials).
 - Target users in this phase: trading / material dealer SMEs on a free trial.
-- Initial focus: responsive web application. Native mobile apps are a later
-  phase, not part of the MVP.
+- The responsive web application is the product. Native iOS and Android apps
+  are in scope as clients of it, distributed through the App Store and Play
+  Store (or TestFlight / internal testing tracks), under Principles
+  XXXIII–XXXVII. A Mac app is out of scope.
 - Design with offline-friendly thinking in mind, though an online-first
   implementation is acceptable for MVP.
 - Currency and timezone MUST be configurable per organization; neither may
@@ -479,6 +572,13 @@ assume the remaining balances are lying too.
 - **Multi-line smoke.** A release containing multi-item purchase orders MUST
   record a deployed run of multi-line create → partial multi-line dispatch →
   per-line remaining before any multi-item claim is made (Principle XXXII).
+- **Store submission gate.** No app build MAY be submitted to the App Store or
+  Play Store, or offered to customers on a testing track, without a recorded
+  real-device pass on one iPhone and one Android phone for the same build, and
+  confirmation that both platforms carry the same features (Principle XXXIV).
+- **Shared logic check.** A change to an app that computes, validates, or
+  derives a business figure MUST cite the API endpoint that owns that rule
+  instead (Principle XXXIII).
 
 ## Governance
 
@@ -533,4 +633,8 @@ migrating without loss are properties of the data model. XXXII's hold on the
 multi-item claim lapses once its conditions are met for a release, and is
 re-earned by any later release that breaks them.
 
-**Version**: 1.5.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-12
+Principles XXXIII through XXXVII are not phase-scoped. One API, both platforms
+together, a mobile web worth wrapping, tokens in secure storage, and no offline
+promise without offline are conditions of shipping an app at all.
+
+**Version**: 2.0.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-12
