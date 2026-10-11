@@ -38,10 +38,25 @@ export default function PrivacyPolicy() {
 
       <h2>Sharing</h2>
       <p>
-        We do not sell your data. We share data with service providers only as needed to run the
-        product — currently our email delivery provider, for transactional email. We'll update this
-        page before adding any other processor.
+        We do not sell your data. We share it only with the service providers needed to run the
+        product, each acting on our behalf:
       </p>
+      <ul>
+        <li>
+          <strong>Vercel</strong> — hosts the website, the app's server, and processes every request
+          you make, including basic technical data such as IP addresses.
+        </li>
+        <li>
+          <strong>Supabase</strong> — hosts the database that stores your account and business
+          records. The database is located in Seoul, South Korea (AWS ap-northeast-2).
+        </li>
+        <li>
+          <strong>Our email delivery provider</strong> — sends transactional email such as password
+          resets, team invitations, and due-date alerts, and receives the recipient's address and the
+          message.
+        </li>
+      </ul>
+      <p>We'll update this page before adding any other provider.</p>
 
       <h2>Mobile apps</h2>
       <p>
