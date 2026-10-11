@@ -32,7 +32,7 @@ jobs:
     env:
       TEST_PG_URL: postgresql+psycopg://orderflow:orderflow@localhost:5434/orderflow
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -59,7 +59,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -75,5 +75,5 @@ jobs:
     runs-on: ubuntu-latest
     needs: [backend]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: docker build -t orderflow-backend:ci ./backend
