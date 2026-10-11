@@ -102,13 +102,13 @@ const landingContent: LandingContent = {
       title: "A remaining balance that is always current",
       copy:
         "Every dispatch you record updates the balance immediately. Nothing is stored and left to drift — the figure you see is calculated from the dispatches behind it.",
-      bullet: "See the total across all orders, and the split by party, on one screen.",
+      bullet: "See what is still to dispatch in each unit, and which parties have open orders, on one screen.",
       image: {
         src: dashboardBalance,
         src2x: dashboardBalance2x,
         width: 640,
         height: 267,
-        alt: "The OrderFlow dashboard showing a total remaining balance of 1,600 across three active purchase orders, three orders on track, and a bar chart of remaining balance split between two parties.",
+        alt: "The OrderFlow dashboard showing three open purchase orders with 600 bags and 1,000 ton still remaining, three orders on track, and a bar chart of open orders for two parties.",
         loading: "lazy",
       },
       imageSide: "right",

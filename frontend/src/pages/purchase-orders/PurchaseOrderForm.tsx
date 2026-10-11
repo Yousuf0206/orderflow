@@ -19,12 +19,39 @@ interface Party {
 interface FormState {
   party_id: string;
   po_number: string;
-  material: string;
-  ordered_qty: string;
-  unit: string;
   order_date: string;
   due_date: string;
   notes: string;
+}
+
+interface LineDraft {
+  // Client-side key only; the server assigns line ids and line numbers.
+  key: number;
+  material: string;
+  ordered_qty: string;
+  unit: string;
+}
+
+type LineField = "material" | "ordered_qty" | "unit";
+
+let nextLineKey = 1;
+function blankLine(): LineDraft {
+  return { key: nextLineKey++, material: "", ordered_qty: "", unit: "" };
+}
+
+/** Per-line 422 messages keyed `${index}.${field}`, from loc ["body", "lines", i, field]. */
+function lineErrors(err: unknown): Record<string, string> {
+  if (!(err instanceof ApiError) || err.status !== 422) return {};
+  const detail = (err.body as { detail?: unknown } | null)?.detail;
+  if (!Array.isArray(detail)) return {};
+  const out: Record<string, string> = {};
+  for (const item of detail as { msg?: string; loc?: unknown[] }[]) {
+    const loc = item.loc ?? [];
+    if (loc[1] === "lines" && typeof loc[2] === "number" && typeof loc[3] === "string" && item.msg) {
+      out[`${loc[2]}.${loc[3]}`] = item.msg;
+    }
+  }
+  return out;
 }
 
 export default function PurchaseOrderForm() {
@@ -40,15 +67,14 @@ export default function PurchaseOrderForm() {
   const [form, setForm] = useState<FormState>({
     party_id: "",
     po_number: "",
-    material: "",
-    ordered_qty: "",
-    unit: "",
     order_date: new Date().toISOString().slice(0, 10),
     due_date: "",
     notes: "",
   });
+  const [lines, setLines] = useState<LineDraft[]>(() => [blankLine()]);
   const [formError, setFormError] = useState<string | null>(null);
   const [poNumberError, setPoNumberError] = useState<string | null>(null);
+  const [errorsByLine, setErrorsByLine] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const poNumberRef = useRef<HTMLInputElement>(null);
 
@@ -56,24 +82,45 @@ export default function PurchaseOrderForm() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function updateLine(key: number, field: LineField, value: string) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, [field]: value } : l)));
+  }
+
+  function removeLine(key: number) {
+    // A purchase order always has at least one line (Principle XXVIII); the
+    // button is disabled at one line, and this guard backs it up.
+    setLines((prev) => (prev.length > 1 ? prev.filter((l) => l.key !== key) : prev));
+    setErrorsByLine({});
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFormError(null);
     setPoNumberError(null);
+    setErrorsByLine({});
     setSaving(true);
     try {
       const po = await api.post<{ id: string }>("/purchase-orders", {
         ...form,
-        ordered_qty: Number(form.ordered_qty),
+        notes: form.notes || null,
+        lines: lines.map((l) => ({
+          material: l.material,
+          ordered_qty: Number(l.ordered_qty),
+          unit: l.unit,
+        })),
       });
       navigate(`/purchase-orders/${po.id}`);
     } catch (err) {
       // Only a 409 is a duplicate PO number. This used to treat *every*
       // ApiError as one, so hitting the plan limit told the user their PO
       // number was taken -- a wrong reason they could never resolve.
+      const perLine = lineErrors(err);
       if (err instanceof ApiError && err.status === 409) {
         setPoNumberError("That PO number is already in use.");
         poNumberRef.current?.focus();
+      } else if (Object.keys(perLine).length > 0) {
+        setErrorsByLine(perLine);
+        setFormError("Some items need fixing — see the highlighted fields below.");
       } else {
         setFormError(describeApiError(err, "Could not save purchase order. Please try again."));
       }
@@ -170,26 +217,74 @@ export default function PurchaseOrderForm() {
             />
           </FormField>
 
-          <FormField label="Material" required>
-            <Input required value={form.material} onChange={(e) => update("material", e.target.value)} />
-          </FormField>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <FormField label="Ordered Qty" required>
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                inputMode="decimal"
-                required
-                value={form.ordered_qty}
-                onChange={(e) => update("ordered_qty", e.target.value)}
-              />
-            </FormField>
-            <FormField label="Unit" required hint="e.g. kg, tons, pcs">
-              <Input required value={form.unit} onChange={(e) => update("unit", e.target.value)} />
-            </FormField>
-          </div>
+          {/* One block per material on the paper PO. Each block stacks on a
+              phone, so a long order never needs sideways scrolling. */}
+          <fieldset className="space-y-3" data-testid="po-line-editor">
+            <legend className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-200">Items</legend>
+            {lines.map((line, index) => (
+              <div
+                key={line.key}
+                className="space-y-3 rounded-lg border border-slate-200 p-3 dark:border-slate-800"
+                data-testid="po-line"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Item {index + 1}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeLine(line.key)}
+                    disabled={lines.length === 1}
+                    aria-label={`Remove item ${index + 1}`}
+                    title={lines.length === 1 ? "A purchase order needs at least one item" : undefined}
+                    className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-3 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent dark:hover:bg-red-500/10 dark:disabled:text-slate-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <FormField label="Material" required error={errorsByLine[`${index}.material`]}>
+                  <Input
+                    required
+                    value={line.material}
+                    onChange={(e) => updateLine(line.key, "material", e.target.value)}
+                  />
+                </FormField>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <FormField label="Ordered Qty" required error={errorsByLine[`${index}.ordered_qty`]}>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="any"
+                      inputMode="decimal"
+                      required
+                      value={line.ordered_qty}
+                      onChange={(e) => updateLine(line.key, "ordered_qty", e.target.value)}
+                    />
+                  </FormField>
+                  <FormField
+                    label="Unit"
+                    required
+                    hint="e.g. kg, tons, pcs"
+                    error={errorsByLine[`${index}.unit`]}
+                  >
+                    <Input
+                      required
+                      value={line.unit}
+                      onChange={(e) => updateLine(line.key, "unit", e.target.value)}
+                    />
+                  </FormField>
+                </div>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setLines((prev) => [...prev, blankLine()])}
+              className="w-full sm:w-auto"
+            >
+              Add line
+            </Button>
+          </fieldset>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField label="Order Date" required>

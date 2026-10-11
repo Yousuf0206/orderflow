@@ -22,15 +22,24 @@ import StatCard from "../../components/ui/StatCard";
 import PageHeader from "../../components/ui/PageHeader";
 import { STATUS_META } from "../../components/ui/statusMeta";
 import { api } from "../../services/apiClient";
+import { formatByUnit, type UnitRemaining } from "../../services/purchaseOrders";
 
+// No single remaining figure: with multi-item orders it would add tonnes to
+// bags (Principle XXIX). Remaining is shown per unit, side by side.
 interface DashboardData {
-  total_remaining_balance: number;
+  remaining_by_unit: UnitRemaining[];
+  open_po_count: number;
   overdue_count: number;
   due_soon_count: number;
   on_track_count: number;
   fully_dispatched_count: number;
   total_po_count: number;
-  party_summary: { party_id: string; party_name: string; remaining_balance: number }[];
+  party_summary: {
+    party_id: string;
+    party_name: string;
+    open_po_count: number;
+    remaining_by_unit: UnitRemaining[];
+  }[];
 }
 
 const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 });
@@ -76,7 +85,9 @@ function DashboardView({ data }: { data: DashboardData }) {
   const partyChartData = data.party_summary.slice(0, 8).map((p) => ({
     name: p.party_name.length > 16 ? `${p.party_name.slice(0, 15)}…` : p.party_name,
     fullName: p.party_name,
-    value: p.remaining_balance,
+    // Open orders, not remaining quantity: a bar per party cannot add one
+    // party's tonnes to its bags, so the chart compares something countable.
+    value: p.open_po_count,
   }));
 
   // A brand-new organization has nothing to chart. Rows of zeroes and four
@@ -113,10 +124,14 @@ function DashboardView({ data }: { data: DashboardData }) {
       <div data-capture="dashboard-balance" className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label="Total Remaining Balance"
-          value={numberFmt.format(data.total_remaining_balance)}
+          label="Open Purchase Orders"
+          value={String(data.open_po_count)}
           icon={Wallet}
-          hint={`${data.total_po_count} active purchase order${data.total_po_count === 1 ? "" : "s"}`}
+          hint={
+            data.remaining_by_unit.length > 0
+              ? `Remaining: ${formatByUnit(data.remaining_by_unit)}`
+              : "Nothing left to dispatch"
+          }
         />
         <StatCard label="On Track" value={String(data.on_track_count)} icon={CheckCircle2} tone="success" />
         <StatCard label="Due Soon" value={String(data.due_soon_count)} icon={Clock} tone="warning" />
@@ -183,7 +198,7 @@ function DashboardView({ data }: { data: DashboardData }) {
 
         <Card className="lg:col-span-3">
           <CardHeader>
-            <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Remaining Balance by Party</h2>
+            <h2 className="text-sm font-medium text-slate-700 dark:text-slate-200">Open Orders by Party</h2>
           </CardHeader>
           <div className="p-5">
             {partyChartData.length === 0 ? (
@@ -191,7 +206,7 @@ function DashboardView({ data }: { data: DashboardData }) {
             ) : (
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={partyChartData} layout="vertical" margin={{ left: 8, right: 16 }}>
-                  <XAxis type="number" tick={{ fontSize: 12 }} stroke="currentColor" className="text-slate-400" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} stroke="currentColor" className="text-slate-400" />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} stroke="currentColor" className="text-slate-400" />
                   <Tooltip
                     formatter={(value) => numberFmt.format(Number(value))}
@@ -226,7 +241,7 @@ function DashboardView({ data }: { data: DashboardData }) {
                     </Link>
                   </td>
                   <td className="px-5 py-2.5 text-right font-medium text-slate-900 dark:text-white">
-                    {numberFmt.format(row.remaining_balance)}
+                    {formatByUnit(row.remaining_by_unit)}
                   </td>
                 </tr>
               ))}

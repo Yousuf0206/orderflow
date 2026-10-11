@@ -13,23 +13,18 @@ import { TableSkeleton } from "../../components/ui/Skeleton";
 import { StatusBadge } from "../../components/ui/Badge";
 import { usePermissions } from "../../hooks/usePermissions";
 import { api } from "../../services/apiClient";
+import { formatByUnit, type PurchaseOrder as PurchaseOrderFull } from "../../services/purchaseOrders";
 
-interface PurchaseOrder {
-  id: string;
-  po_number: string;
-  material: string;
-  remaining_balance: number;
-  status: string;
-  due_date: string;
-}
+type PurchaseOrder = Pick<
+  PurchaseOrderFull,
+  "id" | "po_number" | "material_summary" | "remaining_by_unit" | "status" | "due_date"
+>;
 
 interface Party {
   id: string;
   party_code: string;
   party_name: string;
 }
-
-const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 
 const STATUS_OPTIONS = [
   { value: "on_track", label: "On Track" },
@@ -245,8 +240,9 @@ export default function PurchaseOrdersList() {
                       {po.po_number}
                     </Link>
                   </td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{po.material}</td>
-                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{numberFmt.format(po.remaining_balance)}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{po.material_summary}</td>
+                  {/* Per unit, side by side: "200 bag · 30 tonne", never one summed figure. */}
+                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{formatByUnit(po.remaining_by_unit)}</td>
                   <td className="px-5 py-3">
                     <StatusBadge status={po.status} />
                   </td>

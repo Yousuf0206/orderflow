@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PartyDetail from "../../src/pages/parties/PartyDetail";
 import PurchaseOrderDetail from "../../src/pages/purchase-orders/PurchaseOrderDetail";
 import { REQUEST_TIMEOUT_MS } from "../../src/services/apiClient";
+import { makePO } from "./poFixture";
 
 /**
  * The two screens the project constitution names by name. Both used to render
@@ -136,17 +137,7 @@ describe("purchase order detail failure states", () => {
       }
       return Promise.resolve(
         new Response(
-          JSON.stringify({
-            id: "abc",
-            po_number: "PO-1",
-            material: "Steel",
-            ordered_qty: 100,
-            unit: "ton",
-            due_date: "2027-01-01",
-            total_dispatched: 30,
-            remaining_balance: 70,
-            status: "partial",
-          }),
+          JSON.stringify(makePO({ id: "abc", po_number: "PO-1", due_date: "2027-01-01" })),
           { status: 200, headers: { "content-type": "application/json" } },
         ),
       );

@@ -82,8 +82,13 @@ def evaluate_and_notify(db: Session) -> int:
                     to=user.email,
                     subject=f"PO {po.po_number} is overdue",
                     body=(
-                        f"Purchase Order {po.po_number} ({po.material}) at {org.name} is overdue "
-                        f"with {calc.remaining_balance} {po.unit} remaining."
+                        f"Purchase Order {po.po_number} at {org.name} is overdue. Still remaining: "
+                        + ", ".join(
+                            f"{line.material} {line.remaining_qty:g} {line.unit}"
+                            for line in calc.lines
+                            if line.remaining_qty > 0
+                        )
+                        + "."
                     ),
                 )
             created += 1

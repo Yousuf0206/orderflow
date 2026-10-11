@@ -16,9 +16,7 @@ def test_active_po_limit_is_enforced_for_trial_plan(client):
             json={
                 "party_id": party["id"],
                 "po_number": f"PO-{i}",
-                "material": "Steel",
-                "ordered_qty": 10,
-                "unit": "ton",
+                "lines": [{"material": "Steel", "ordered_qty": 10, "unit": "ton"}],
                 "order_date": "2026-01-01",
                 "due_date": "2027-01-01",
             },
@@ -31,9 +29,7 @@ def test_active_po_limit_is_enforced_for_trial_plan(client):
         json={
             "party_id": party["id"],
             "po_number": "PO-OVER",
-            "material": "Steel",
-            "ordered_qty": 10,
-            "unit": "ton",
+            "lines": [{"material": "Steel", "ordered_qty": 10, "unit": "ton"}],
             "order_date": "2026-01-01",
             "due_date": "2027-01-01",
         },

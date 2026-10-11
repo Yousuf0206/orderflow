@@ -76,8 +76,7 @@ test("the full smoke path completes at 390px, and a dispatch lands inside 30s", 
 
   // The dashboard must agree with the purchase order screen; Principle XIII's
   // path ends there, not at the order.
+  // Remaining is shown per unit there, never as one cross-unit total.
   await page.goto("/dashboard");
-  await expect(page.locator('[data-stat="Total Remaining Balance"] [data-stat-value]')).toHaveText(
-    "600",
-  );
+  await expect(page.locator('[data-stat="Open Purchase Orders"]')).toContainText("600 ton");
 });

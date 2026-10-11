@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import PartyDetail from "../../src/pages/parties/PartyDetail";
 import PurchaseOrdersList from "../../src/pages/purchase-orders/PurchaseOrdersList";
 import { STATUS_META, getStatusMeta } from "../../src/components/ui/statusMeta";
+import { makePO } from "./poFixture";
 
 /**
  * Spec FR-035: a status must read the same everywhere it appears.
@@ -19,14 +20,7 @@ import { STATUS_META, getStatusMeta } from "../../src/components/ui/statusMeta";
 /** The statuses the backend's po_calc can produce. */
 const BACKEND_STATUSES = ["on_track", "due_soon", "overdue", "fully_dispatched"];
 
-const ORDER = {
-  id: "po-1",
-  po_number: "PO-2001",
-  material: "TMT Steel Bars",
-  remaining_balance: 600,
-  status: "overdue",
-  due_date: "2026-01-01",
-};
+const ORDER = makePO({ status: "overdue", due_date: "2026-01-01" });
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -52,6 +46,7 @@ function mockApi(status: string) {
         return json({
           party: { id: "party-1", party_code: "P-101", party_name: "Northgate", city: null },
           open_orders: [{ ...ORDER, status }],
+          remaining_by_unit: ORDER.remaining_by_unit,
         });
       }
       if (url.includes("/parties")) return json([]);

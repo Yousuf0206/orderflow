@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PurchaseOrderDetail from "../../src/pages/purchase-orders/PurchaseOrderDetail";
+import { makePO } from "./poFixture";
 
 /**
  * A control the server will refuse must not be on screen.
@@ -15,17 +16,7 @@ import PurchaseOrderDetail from "../../src/pages/purchase-orders/PurchaseOrderDe
  * permission boundary.
  */
 
-const PO = {
-  id: "po-1",
-  po_number: "PO-2001",
-  material: "TMT Steel Bars 12mm",
-  ordered_qty: 1000,
-  unit: "ton",
-  due_date: "2026-11-01",
-  total_dispatched: 400,
-  remaining_balance: 600,
-  status: "on_track",
-};
+const PO = makePO();
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

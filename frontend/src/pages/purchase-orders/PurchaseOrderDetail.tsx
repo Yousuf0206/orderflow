@@ -14,35 +14,26 @@ import { KpiSkeletonRow, Skeleton, TableSkeleton } from "../../components/ui/Ske
 import StatCard from "../../components/ui/StatCard";
 import { usePermissions } from "../../hooks/usePermissions";
 import { api, describeApiError } from "../../services/apiClient";
+import {
+  type Dispatch,
+  type DispatchCreateResponse,
+  formatQty,
+  type PurchaseOrder,
+} from "../../services/purchaseOrders";
 
-interface PurchaseOrder {
-  id: string;
-  po_number: string;
-  material: string;
-  ordered_qty: number;
-  unit: string;
-  due_date: string;
-  total_dispatched: number;
-  remaining_balance: number;
-  status: string;
+function blankHeader() {
+  return { dispatch_date: new Date().toISOString().slice(0, 10), vehicle_ref: "", remarks: "" };
 }
-
-interface Dispatch {
-  id: string;
-  dispatch_date: string;
-  qty: number;
-  vehicle_ref: string | null;
-  remarks: string | null;
-}
-
-const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 
 export default function PurchaseOrderDetail() {
   const { id } = useParams();
   const queryClient = useQueryClient();
   const permissions = usePermissions();
-  const [form, setForm] = useState({ dispatch_date: new Date().toISOString().slice(0, 10), qty: "", vehicle_ref: "", remarks: "" });
+  const [header, setHeader] = useState(blankHeader);
+  // Qty per line id. Blank or 0 means "not on this truck".
+  const [qtys, setQtys] = useState<Record<string, string>>({});
   const [warning, setWarning] = useState<string | null>(null);
+  const [overLineIds, setOverLineIds] = useState<Set<string>>(new Set());
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -69,24 +60,44 @@ export default function PurchaseOrderDetail() {
     enabled: !!id,
   });
 
-  function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  function updateHeader<K extends keyof ReturnType<typeof blankHeader>>(key: K, value: string) {
+    setHeader((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateQty(lineId: string, value: string) {
+    setQtys((prev) => ({ ...prev, [lineId]: value }));
+    // Editing the figures invalidates a warning about the old ones.
+    setWarning(null);
+    setOverLineIds(new Set());
   }
 
   async function submitDispatch(confirm: boolean) {
+    const lines = Object.entries(qtys)
+      .map(([lineId, value]) => ({ purchase_order_line_id: lineId, qty: Number(value) }))
+      .filter((l) => Number.isFinite(l.qty) && l.qty > 0);
+    if (lines.length === 0) {
+      setSubmitError("Enter a quantity for at least one item on this truck.");
+      return;
+    }
     setSaving(true);
     setSubmitError(null);
     try {
-      const result = await api.post<{ dispatch: Dispatch | null; warning: string | null }>(
-        `/purchase-orders/${id}/dispatches`,
-        { ...form, qty: Number(form.qty), confirm },
-      );
+      const result = await api.post<DispatchCreateResponse>(`/purchase-orders/${id}/dispatches`, {
+        dispatch_date: header.dispatch_date,
+        vehicle_ref: header.vehicle_ref || null,
+        remarks: header.remarks || null,
+        lines,
+        confirm,
+      });
       if (result.warning && !result.dispatch) {
         setWarning(result.warning);
+        setOverLineIds(new Set(result.over_lines.map((o) => o.purchase_order_line_id)));
         return;
       }
       setWarning(null);
-      setForm({ dispatch_date: new Date().toISOString().slice(0, 10), qty: "", vehicle_ref: "", remarks: "" });
+      setOverLineIds(new Set());
+      setHeader(blankHeader());
+      setQtys({});
       queryClient.invalidateQueries({ queryKey: ["purchase-order", id] });
       queryClient.invalidateQueries({ queryKey: ["dispatches", id] });
     } catch (err) {
@@ -114,7 +125,9 @@ export default function PurchaseOrderDetail() {
         </div>
       }
     >
-      {(po) => (
+      {(po) => {
+        const single = po.lines.length === 1 ? po.lines[0] : null;
+        return (
     // po-page is the hero shot: the whole screen, so a visitor sees software
     // rather than a thin strip of numbers. po-summary inside it is the tight
     // crop. Both are listed in contracts/image-assets.md.
@@ -124,13 +137,55 @@ export default function PurchaseOrderDetail() {
           Keep it on a wrapper rather than on the grid, so the hero shot
           includes the PO number, material, unit and due date. */}
       <div data-capture="po-summary" className="space-y-6">
-        <PageHeader title={po.po_number} description={`${po.material} · ${po.unit} · Due ${po.due_date}`} />
+        <PageHeader
+          title={po.po_number}
+          description={
+            single
+              ? `${single.material} · ${single.unit} · Due ${po.due_date}`
+              : `${po.item_count} items · Due ${po.due_date}`
+          }
+        />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label="Ordered" value={numberFmt.format(po.ordered_qty)} icon={PackageOpen} />
-          <StatCard label="Dispatched" value={numberFmt.format(po.total_dispatched)} icon={Truck} tone="success" />
-          <StatCard label="Remaining" value={numberFmt.format(po.remaining_balance)} icon={Wallet} tone="warning" />
-        </div>
+        {single ? (
+          // One line reads exactly as a single-material order always has, so
+          // the landing screenshots of this screen stay true (Principle XIX).
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard label="Ordered" value={formatQty(single.ordered_qty)} icon={PackageOpen} />
+            <StatCard label="Dispatched" value={formatQty(single.dispatched_qty)} icon={Truck} tone="success" />
+            <StatCard label="Remaining" value={formatQty(single.remaining_qty)} icon={Wallet} tone="warning" />
+          </div>
+        ) : (
+          <Card className="overflow-x-auto" data-testid="po-lines">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs font-medium uppercase tracking-wide text-slate-400 dark:border-slate-800">
+                  <th className="px-5 py-3">Material</th>
+                  <th className="px-5 py-3">Unit</th>
+                  <th className="px-5 py-3 text-right">Ordered</th>
+                  <th className="px-5 py-3 text-right">Dispatched</th>
+                  <th className="px-5 py-3 text-right">Remaining</th>
+                </tr>
+              </thead>
+              <tbody>
+                {po.lines.map((line) => (
+                  <tr key={line.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
+                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{line.material}</td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{line.unit}</td>
+                    <td className="px-5 py-3 text-right text-slate-600 dark:text-slate-300">
+                      {formatQty(line.ordered_qty)}
+                    </td>
+                    <td className="px-5 py-3 text-right text-slate-600 dark:text-slate-300">
+                      {formatQty(line.dispatched_qty)}
+                    </td>
+                    <td className="px-5 py-3 text-right font-semibold text-amber-700 dark:text-amber-400">
+                      {formatQty(line.remaining_qty)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
       </div>
 
       {/* The form is rendered only for a role the server will accept.
@@ -182,26 +237,44 @@ export default function PurchaseOrderDetail() {
               <Input
                 type="date"
                 required
-                value={form.dispatch_date}
-                onChange={(e) => update("dispatch_date", e.target.value)}
-              />
-            </FormField>
-            <FormField label="Qty" required>
-              <Input
-                type="number"
-                min="0"
-                step="any"
-                inputMode="decimal"
-                required
-                value={form.qty}
-                onChange={(e) => update("qty", e.target.value)}
+                value={header.dispatch_date}
+                onChange={(e) => updateHeader("dispatch_date", e.target.value)}
               />
             </FormField>
             <FormField label="Vehicle / Ref">
-              <Input value={form.vehicle_ref} onChange={(e) => update("vehicle_ref", e.target.value)} />
+              <Input value={header.vehicle_ref} onChange={(e) => updateHeader("vehicle_ref", e.target.value)} />
             </FormField>
+
+            {/* One quantity box per item. Stacked one per row so it fits a
+                390px phone without sideways scrolling (Principle XXII). */}
+            <fieldset className="space-y-3 sm:col-span-2" data-testid="dispatch-lines">
+              {po.lines.length > 1 && (
+                <legend className="mb-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Quantity on this truck <span className="font-normal text-slate-500">(leave blank if not loaded)</span>
+                </legend>
+              )}
+              {po.lines.map((line) => (
+                <FormField
+                  key={line.id}
+                  label={single ? "Qty" : `${line.material} (${line.unit})`}
+                  hint={`${formatQty(line.remaining_qty)} ${line.unit} remaining`}
+                  error={overLineIds.has(line.id) ? "More than remains on this item" : undefined}
+                >
+                  <Input
+                    type="number"
+                    min="0"
+                    step="any"
+                    inputMode="decimal"
+                    value={qtys[line.id] ?? ""}
+                    onChange={(e) => updateQty(line.id, e.target.value)}
+                    aria-invalid={overLineIds.has(line.id) || undefined}
+                  />
+                </FormField>
+              ))}
+            </fieldset>
+
             <FormField label="Remarks">
-              <Input value={form.remarks} onChange={(e) => update("remarks", e.target.value)} />
+              <Input value={header.remarks} onChange={(e) => updateHeader("remarks", e.target.value)} />
             </FormField>
             {/* Full width on a phone, and last in document flow so an
                 on-screen keyboard over a field above does not cover it. */}
@@ -250,9 +323,22 @@ export default function PurchaseOrderDetail() {
             </thead>
             <tbody>
               {rows.map((d) => (
-                <tr key={d.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-800">
+                <tr key={d.id} className="border-b border-slate-100 align-top last:border-b-0 dark:border-slate-800">
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{d.dispatch_date}</td>
-                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{numberFmt.format(d.qty)}</td>
+                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">
+                    {single ? (
+                      formatQty(d.lines[0]?.qty ?? 0)
+                    ) : (
+                      <ul className="space-y-0.5">
+                        {d.lines.map((l) => (
+                          <li key={l.purchase_order_line_id}>
+                            {formatQty(l.qty)} {l.unit}{" "}
+                            <span className="font-normal text-slate-500">{l.material}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{d.vehicle_ref ?? "-"}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{d.remarks ?? "-"}</td>
                 </tr>
@@ -264,7 +350,8 @@ export default function PurchaseOrderDetail() {
       </Card>
       </div>
     </div>
-      )}
+        );
+      }}
     </QueryState>
   );
 }

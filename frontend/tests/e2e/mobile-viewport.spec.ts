@@ -301,6 +301,56 @@ test("the dispatch form's primary action spans the screen and sits below the fie
   expect(submitBox.y).toBeGreaterThan(qtyBox.y);
 });
 
+/**
+ * Spec 006 / T035: the multi-item line editor and the per-item dispatch boxes
+ * at phone widths. Layout evidence only -- not the real-device record
+ * Principle XXVI requires.
+ */
+test("a three-item order can be created and dispatched at phone widths", async ({ page }) => {
+  const unique = uid();
+  await signUp(page, unique);
+
+  await page.goto("/parties/new");
+  await page.getByLabel("Party Code").fill(`ML-${unique}`);
+  await page.getByLabel("Party Name").fill("Multi Phone Party");
+  await page.getByRole("button", { name: /save party/i }).click();
+  await expect(page).toHaveURL(/\/parties\/(?!new)[^/]+$/);
+
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto("/purchase-orders/new");
+  await page.getByRole("combobox").selectOption({ label: "Multi Phone Party" });
+  await page.getByLabel("PO Number").fill(`PO-${unique}`);
+  await page.getByLabel("Due Date").fill("2027-01-01");
+  await page.getByRole("button", { name: /add line/i }).click();
+  await page.getByRole("button", { name: /add line/i }).click();
+  const blocks = page.getByTestId("po-line");
+  for (const [i, [material, unit]] of [["Steel", "tonne"], ["Cement", "bag"], ["Sand", "truck"]].entries()) {
+    await blocks.nth(i).getByLabel("Material").fill(material);
+    await blocks.nth(i).getByLabel("Ordered Qty").fill("100");
+    await blocks.nth(i).getByLabel("Unit").fill(unit);
+  }
+  await expectNoHorizontalScroll(page);
+  await expectTouchTargets(page, "line editor at 320px");
+  await page.getByRole("button", { name: /create purchase order/i }).click();
+  await expect(page).toHaveURL(/\/purchase-orders\/(?!new)[^/]+$/);
+
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.getByRole("spinbutton", { name: /sand \(truck\)/i })).toBeVisible({ timeout: 15_000 });
+    await expectNoHorizontalScroll(page);
+    await expectTouchTargets(page, `multi-item dispatch form at ${width}px`);
+    for (const box of await page.getByTestId("dispatch-lines").getByRole("spinbutton").all()) {
+      await expect(box).toHaveAttribute("inputmode", "decimal");
+    }
+  }
+
+  // Submit stays below every quantity box, so a keyboard over a box above it
+  // does not cover it.
+  const submitBox = (await page.getByRole("button", { name: /add dispatch/i }).boundingBox())!;
+  const lastQty = (await page.getByRole("spinbutton", { name: /sand \(truck\)/i }).boundingBox())!;
+  expect(submitBox.y).toBeGreaterThan(lastQty.y);
+});
+
 test("a numeric keypad is requested for quantity", async ({ page }) => {
   const unique = uid();
   await signUp(page, unique);

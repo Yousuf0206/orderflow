@@ -19,10 +19,10 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from src.core.db import Base
-from src.models.dispatch import Dispatch
+from src.models.dispatch import Dispatch, DispatchLine
 from src.models.organization import Organization
 from src.models.party import Party
-from src.models.purchase_order import PurchaseOrder
+from src.models.purchase_order import PurchaseOrder, PurchaseOrderLine
 from src.services import po_calc
 
 
@@ -61,9 +61,11 @@ def orders(db):
             organization_id=org.id,
             party_id=party.id,
             po_number=number,
-            material="Steel",
-            ordered_qty=ordered,
-            unit="ton",
+            lines=[
+                PurchaseOrderLine(
+                    organization_id=org.id, line_no=1, material="Steel", ordered_qty=ordered, unit="ton"
+                )
+            ],
             order_date=today - timedelta(days=30),
             due_date=today + timedelta(days=due_offset),
         )
@@ -77,14 +79,35 @@ def orders(db):
     overdue = po("PO-OVERDUE", 100, -1)
     due_today = po("PO-TODAY", 100, 0)
     soft_deleted_only = po("PO-SOFTDEL", 100, 30)
+    # Two lines in different units: steel fully sent, cement still open.
+    multi = PurchaseOrder(
+        organization_id=org.id,
+        party_id=party.id,
+        po_number="PO-MULTI",
+        lines=[
+            PurchaseOrderLine(organization_id=org.id, line_no=1, material="Steel", ordered_qty=50, unit="ton"),
+            PurchaseOrderLine(organization_id=org.id, line_no=2, material="Cement", ordered_qty=200, unit="bag"),
+        ],
+        order_date=today - timedelta(days=30),
+        due_date=today + timedelta(days=30),
+    )
+    db.add(multi)
     db.flush()
 
-    def dispatch(target, qty, deleted=False):
+    def dispatch(target, qty, deleted=False, line_index=0):
+        line = target.lines[line_index]
         row = Dispatch(
             organization_id=org.id,
             purchase_order_id=target.id,
             dispatch_date=today - timedelta(days=1),
-            qty=qty,
+            lines=[
+                DispatchLine(
+                    organization_id=org.id,
+                    purchase_order_id=target.id,
+                    purchase_order_line_id=line.id,
+                    qty=qty,
+                )
+            ],
         )
         if deleted:
             row.soft_delete()
@@ -97,6 +120,8 @@ def orders(db):
     dispatch(overdue, 10)
     dispatch(due_today, 10)
     dispatch(soft_deleted_only, 60, deleted=True)
+    dispatch(multi, 50, line_index=0)
+    dispatch(multi, 80, line_index=1)
     db.commit()
 
     return [
@@ -107,6 +132,7 @@ def orders(db):
         overdue,
         due_today,
         soft_deleted_only,
+        multi,
     ]
 
 
@@ -120,15 +146,15 @@ def test_compute_many_matches_compute_for_every_order(db, orders):
 def test_order_with_no_dispatches_reads_as_zero(db, orders):
     po = next(p for p in orders if p.po_number == "PO-NONE")
     calc = po_calc.compute_many(db, orders)[po.id]
-    assert calc.total_dispatched == 0
-    assert calc.remaining_balance == 100
+    assert calc.lines[0].dispatched_qty == 0
+    assert calc.lines[0].remaining_qty == 100
 
 
 def test_soft_deleted_dispatches_are_excluded(db, orders):
     po = next(p for p in orders if p.po_number == "PO-SOFTDEL")
     calc = po_calc.compute_many(db, orders)[po.id]
-    assert calc.total_dispatched == 0
-    assert calc.remaining_balance == 100
+    assert calc.lines[0].dispatched_qty == 0
+    assert calc.lines[0].remaining_qty == 100
 
 
 def test_statuses_cover_every_branch(db, orders):
@@ -144,8 +170,18 @@ def test_statuses_cover_every_branch(db, orders):
 def test_over_dispatched_is_fully_dispatched_not_negative_status(db, orders):
     po = next(p for p in orders if p.po_number == "PO-OVER")
     calc = po_calc.compute_many(db, orders)[po.id]
-    assert calc.remaining_balance == -50
+    assert calc.lines[0].remaining_qty == -50
     assert calc.status == "fully_dispatched"
+
+
+def test_multi_line_order_is_open_while_any_line_is(db, orders):
+    po = next(p for p in orders if p.po_number == "PO-MULTI")
+    calc = po_calc.compute_many(db, orders)[po.id]
+    assert [(l.material, l.remaining_qty) for l in calc.lines] == [("Steel", 0), ("Cement", 120)]
+    assert calc.status == "on_track"
+    assert calc.remaining_by_unit == [{"unit": "bag", "remaining": 120}]
+    assert calc.item_count == 2
+    assert calc.material_summary == "Steel +1 more"
 
 
 def test_empty_input_is_an_empty_result(db):
@@ -169,7 +205,7 @@ def test_batch_issues_one_aggregate_regardless_of_order_count(db, orders):
     aggregates: list[str] = []
 
     def record(conn, cursor, statement, params, context, executemany):
-        if "sum(" in statement.lower() and "dispatches" in statement.lower():
+        if "sum(" in statement.lower() and "dispatch_lines" in statement.lower():
             aggregates.append(statement)
 
     engine = db.get_bind()
@@ -183,4 +219,4 @@ def test_batch_issues_one_aggregate_regardless_of_order_count(db, orders):
     finally:
         event.remove(engine, "before_cursor_execute", record)
 
-    assert many == few == 1, f"{many} aggregates for 7 orders, {few} for 2"
+    assert many == few == 1, f"{many} aggregates for 8 orders, {few} for 2"

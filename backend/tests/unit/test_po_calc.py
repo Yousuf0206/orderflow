@@ -1,70 +1,65 @@
+"""The pure rules behind remaining and status, with no database involved.
+
+Since 006 these take per-line remainings: a PO is fully dispatched only when
+every line is, and its due date sets severity while any line is open
+(constitution XXIX).
+"""
+
 from datetime import date, timedelta
 
 from src.services import po_calc
+from src.services.po_calc import LineCalc
+
+TODAY = date(2026, 10, 12)
 
 
-class FakePO:
-    def __init__(self, ordered_qty, due_date, id="po1"):
-        self.id = id
-        self.ordered_qty = ordered_qty
-        self.due_date = due_date
+def _line(remaining, unit="ton", ordered=100):
+    return LineCalc(
+        id="l",
+        line_no=1,
+        material="m",
+        unit=unit,
+        ordered_qty=ordered,
+        dispatched_qty=ordered - remaining,
+        remaining_qty=remaining,
+    )
 
 
-class FakeQuery:
-    """Mimics the grouped aggregate `total_dispatched_many` issues.
-
-    Updated when the per-order `SELECT sum(qty)` became one grouped query for
-    the whole set; the shape asserted here is `(purchase_order_id, total)` rows
-    from `.group_by(...).all()`.
-    """
-
-    def __init__(self, rows):
-        self._rows = rows
-
-    def filter(self, *args, **kwargs):
-        return self
-
-    def group_by(self, *args, **kwargs):
-        return self
-
-    def all(self):
-        return self._rows
+def test_remaining_is_ordered_minus_dispatched():
+    assert po_calc.line_remaining(100, 40) == 60
+    assert po_calc.line_remaining(100, 150) == -50
 
 
-class FakeDB:
-    def __init__(self, total_dispatched, po_id="po1"):
-        self._rows = [(po_id, total_dispatched)]
-
-    def query(self, *args, **kwargs):
-        return FakeQuery(self._rows)
-
-
-def test_remaining_balance_is_never_cached_always_derived():
-    po = FakePO(ordered_qty=100, due_date=date.today() + timedelta(days=30))
-    db = FakeDB(total_dispatched=40)
-    result = po_calc.compute(db, po)
-    assert result.total_dispatched == 40
-    assert result.remaining_balance == 60
-    assert result.status == "on_track"
+def test_fully_dispatched_only_when_every_line_is():
+    future = TODAY + timedelta(days=30)
+    assert po_calc.po_status([0, 0], future, TODAY) == "fully_dispatched"
+    assert po_calc.po_status([0, -5], future, TODAY) == "fully_dispatched"
+    assert po_calc.po_status([0, 10], future, TODAY) == "on_track"
 
 
-def test_status_fully_dispatched_when_balance_zero():
-    po = FakePO(ordered_qty=100, due_date=date.today() + timedelta(days=30))
-    db = FakeDB(total_dispatched=100)
-    result = po_calc.compute(db, po)
-    assert result.remaining_balance == 0
-    assert result.status == "fully_dispatched"
+def test_overdue_when_any_line_open_and_past_due():
+    assert po_calc.po_status([0, 10], TODAY - timedelta(days=1), TODAY) == "overdue"
 
 
-def test_status_overdue_when_past_due_with_balance():
-    po = FakePO(ordered_qty=100, due_date=date.today() - timedelta(days=1))
-    db = FakeDB(total_dispatched=10)
-    result = po_calc.compute(db, po)
-    assert result.status == "overdue"
+def test_past_due_but_complete_is_not_overdue():
+    assert po_calc.po_status([0, 0], TODAY - timedelta(days=1), TODAY) == "fully_dispatched"
 
 
-def test_status_due_soon_within_window():
-    po = FakePO(ordered_qty=100, due_date=date.today() + timedelta(days=1))
-    db = FakeDB(total_dispatched=10)
-    result = po_calc.compute(db, po)
-    assert result.status == "due_soon"
+def test_due_soon_within_window_and_due_today_is_not_overdue():
+    assert po_calc.po_status([10], TODAY + timedelta(days=1), TODAY) == "due_soon"
+    assert po_calc.po_status([10], TODAY, TODAY) == "due_soon"
+
+
+def test_remaining_by_unit_never_adds_across_units():
+    lines = [_line(30, "ton"), _line(100, "bag"), _line(20, "Ton "), _line(0, "truck")]
+    assert po_calc.remaining_by_unit(lines) == [
+        {"unit": "bag", "remaining": 100},
+        {"unit": "ton", "remaining": 50},
+    ]
+
+
+def test_remaining_by_unit_ignores_over_dispatched_lines():
+    # An over-dispatched line must not subtract from another line's open qty.
+    assert po_calc.remaining_by_unit([_line(-50, "ton"), _line(30, "ton")]) == [
+        {"unit": "ton", "remaining": 30}
+    ]

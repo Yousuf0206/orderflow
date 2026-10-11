@@ -27,11 +27,11 @@ from urllib.parse import urlparse
 from src.core.config import settings
 from src.core.db import SessionLocal
 from src.core.security import hash_password
-from src.models.dispatch import Dispatch
+from src.models.dispatch import Dispatch, DispatchLine
 from src.models.membership import Membership
 from src.models.organization import Organization
 from src.models.party import Party
-from src.models.purchase_order import PurchaseOrder
+from src.models.purchase_order import PurchaseOrder, PurchaseOrderLine
 from src.models.subscription import PLAN_LIMITS, Subscription
 from src.models.user import User
 
@@ -74,7 +74,9 @@ def _delete_existing(db, org: Organization) -> None:
     unique (organization_id, po_number) rows in place and break the rebuild.
     """
     org_id = org.id
+    db.query(DispatchLine).filter(DispatchLine.organization_id == org_id).delete()
     db.query(Dispatch).filter(Dispatch.organization_id == org_id).delete()
+    db.query(PurchaseOrderLine).filter(PurchaseOrderLine.organization_id == org_id).delete()
     db.query(PurchaseOrder).filter(PurchaseOrder.organization_id == org_id).delete()
     db.query(Party).filter(Party.organization_id == org_id).delete()
     db.query(Subscription).filter(Subscription.organization_id == org_id).delete()
@@ -152,9 +154,7 @@ def run(recreate: bool = False) -> None:
             organization_id=org.id,
             party_id=party.id,
             po_number="PO-2001",
-            material="TMT Steel Bars 12mm",
-            ordered_qty=1000,
-            unit="ton",
+            lines=[PurchaseOrderLine(organization_id=org.id, line_no=1, material="TMT Steel Bars 12mm", ordered_qty=1000, unit="ton")],
             order_date=today - timedelta(days=18),
             due_date=today + timedelta(days=12),
         )
@@ -165,9 +165,7 @@ def run(recreate: bool = False) -> None:
             organization_id=org.id,
             party_id=party.id,
             po_number="PO-2002",
-            material="MS Angle 50x50",
-            ordered_qty=600,
-            unit="ton",
+            lines=[PurchaseOrderLine(organization_id=org.id, line_no=1, material="MS Angle 50x50", ordered_qty=600, unit="ton")],
             order_date=today - timedelta(days=12),
             due_date=today + timedelta(days=20),
         )
@@ -175,9 +173,7 @@ def run(recreate: bool = False) -> None:
             organization_id=org.id,
             party_id=party_two.id,
             po_number="PO-2003",
-            material="OPC Cement 50kg",
-            ordered_qty=900,
-            unit="bags",
+            lines=[PurchaseOrderLine(organization_id=org.id, line_no=1, material="OPC Cement 50kg", ordered_qty=900, unit="bags")],
             order_date=today - timedelta(days=6),
             due_date=today + timedelta(days=25),
         )
@@ -190,28 +186,56 @@ def run(recreate: bool = False) -> None:
                     organization_id=org.id,
                     purchase_order_id=hero_po.id,
                     dispatch_date=today - timedelta(days=11),
-                    qty=250,
+                    lines=[
+                        DispatchLine(
+                            organization_id=org.id,
+                            purchase_order_id=hero_po.id,
+                            purchase_order_line_id=hero_po.lines[0].id,
+                            qty=250,
+                        )
+                    ],
                     vehicle_ref="TLX-4417",
                 ),
                 Dispatch(
                     organization_id=org.id,
                     purchase_order_id=hero_po.id,
                     dispatch_date=today - timedelta(days=4),
-                    qty=150,
+                    lines=[
+                        DispatchLine(
+                            organization_id=org.id,
+                            purchase_order_id=hero_po.id,
+                            purchase_order_line_id=hero_po.lines[0].id,
+                            qty=150,
+                        )
+                    ],
                     vehicle_ref="TLX-6082",
                 ),
                 Dispatch(
                     organization_id=org.id,
                     purchase_order_id=support_po_1.id,
                     dispatch_date=today - timedelta(days=5),
-                    qty=200,
+                    lines=[
+                        DispatchLine(
+                            organization_id=org.id,
+                            purchase_order_id=support_po_1.id,
+                            purchase_order_line_id=support_po_1.lines[0].id,
+                            qty=200,
+                        )
+                    ],
                     vehicle_ref="KHR-1193",
                 ),
                 Dispatch(
                     organization_id=org.id,
                     purchase_order_id=support_po_2.id,
                     dispatch_date=today - timedelta(days=2),
-                    qty=300,
+                    lines=[
+                        DispatchLine(
+                            organization_id=org.id,
+                            purchase_order_id=support_po_2.id,
+                            purchase_order_line_id=support_po_2.lines[0].id,
+                            qty=300,
+                        )
+                    ],
                     vehicle_ref="KHR-7725",
                 ),
             ]

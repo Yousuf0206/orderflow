@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PurchaseOrdersList from "../../src/pages/purchase-orders/PurchaseOrdersList";
+import { makePO } from "./poFixture";
 
 /**
  * Filters live in the URL, and a filtered empty list must not claim the
@@ -16,14 +17,7 @@ const PARTIES = [
 ];
 
 const ORDERS = [
-  {
-    id: "po-1",
-    po_number: "PO-2001",
-    material: "TMT Steel Bars",
-    remaining_balance: 600,
-    status: "on_track",
-    due_date: "2026-11-01",
-  },
+  makePO(),
 ];
 
 function json(body: unknown, status = 200) {

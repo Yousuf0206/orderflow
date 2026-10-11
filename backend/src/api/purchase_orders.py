@@ -4,8 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.core.security import CurrentUser, require_role
 from src.core.tenant import TenantContext, get_tenant_context
-from src.models.purchase_order import PurchaseOrder
-from src.schemas.purchase_order import PurchaseOrderCreate, PurchaseOrderOut, PurchaseOrderUpdate
+from src.models.purchase_order import PurchaseOrder, PurchaseOrderLine
+from src.schemas.purchase_order import (
+    PurchaseOrderCreate,
+    PurchaseOrderLineOut,
+    PurchaseOrderOut,
+    PurchaseOrderUpdate,
+)
 from src.services.audit import log_action
 from src.services.po_calc import VALID_STATUSES, PoCalc, compute, compute_many
 
@@ -28,22 +33,40 @@ def _out(po: PurchaseOrder, calc: PoCalc) -> PurchaseOrderOut:
         id=po.id,
         party_id=po.party_id,
         po_number=po.po_number,
-        material=po.material,
-        ordered_qty=float(po.ordered_qty),
-        unit=po.unit,
         order_date=po.order_date,
         due_date=po.due_date,
         notes=po.notes,
-        total_dispatched=calc.total_dispatched,
-        remaining_balance=calc.remaining_balance,
         days_to_delivery=calc.days_to_delivery,
         status=calc.status,
+        item_count=calc.item_count,
+        material_summary=calc.material_summary,
+        lines=[PurchaseOrderLineOut(**vars(line)) for line in calc.lines],
+        remaining_by_unit=calc.remaining_by_unit,
     )
 
 
 def _to_out(db, po: PurchaseOrder) -> PurchaseOrderOut:
     return _out(po, compute(db, po))
 
+
+def audit_state(po: PurchaseOrder) -> dict:
+    """Header plus every line, so an audit entry can reconstruct the order (FR-015)."""
+    return {
+        "po_number": po.po_number,
+        "party_id": po.party_id,
+        "order_date": po.order_date.isoformat(),
+        "due_date": po.due_date.isoformat(),
+        "notes": po.notes,
+        "lines": [
+            {
+                "line_no": line.line_no,
+                "material": line.material,
+                "ordered_qty": float(line.ordered_qty),
+                "unit": line.unit,
+            }
+            for line in po.lines
+        ],
+    }
 
 def get_active_po(tenant: TenantContext, po_id: str) -> PurchaseOrder:
     po = (
@@ -117,7 +140,16 @@ def create_purchase_order(
     if existing:
         raise HTTPException(status.HTTP_409_CONFLICT, "po_number already in use")
 
-    po = PurchaseOrder(organization_id=tenant.organization_id, **payload.model_dump())
+    # Header and lines in one transaction: a PO is never visible with zero
+    # lines (constitution XXVIII).
+    po = PurchaseOrder(
+        organization_id=tenant.organization_id,
+        **payload.model_dump(exclude={"lines"}),
+    )
+    po.lines = [
+        PurchaseOrderLine(organization_id=tenant.organization_id, line_no=i, **line.model_dump())
+        for i, line in enumerate(payload.lines, start=1)
+    ]
     tenant.db.add(po)
     tenant.db.flush()
     log_action(
@@ -127,7 +159,7 @@ def create_purchase_order(
         action="create",
         entity_type="purchase_order",
         entity_id=po.id,
-        after_state=payload.model_dump(mode="json"),
+        after_state=audit_state(po),
     )
     tenant.db.commit()
     tenant.db.refresh(po)
@@ -183,5 +215,6 @@ def delete_purchase_order(
         action="delete",
         entity_type="purchase_order",
         entity_id=po.id,
+        before_state=audit_state(po),
     )
     tenant.db.commit()

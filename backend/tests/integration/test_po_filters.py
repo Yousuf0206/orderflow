@@ -23,9 +23,7 @@ def _po(client, headers, party_id, number, *, due_offset=30, ordered=100):
         json={
             "party_id": party_id,
             "po_number": number,
-            "material": "TMT Steel Bars",
-            "ordered_qty": ordered,
-            "unit": "ton",
+            "lines": [{"material": "TMT Steel Bars", "ordered_qty": ordered, "unit": "ton"}],
             "order_date": (TODAY - timedelta(days=40)).isoformat(),
             "due_date": (TODAY + timedelta(days=due_offset)).isoformat(),
         },

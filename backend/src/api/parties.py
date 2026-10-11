@@ -10,18 +10,20 @@ from src.models.purchase_order import PurchaseOrder
 from src.schemas.party import PartyCreate, PartyOut, PartyUpdate
 from src.services import exports
 from src.services.audit import log_action
-from src.services.po_calc import compute_many
+from src.services.po_calc import compute_many, remaining_by_unit
 
-# Fixed by spec FR-019. Neither the set nor the order may change without
-# amending the spec -- a party receiving a differently shaped file each time
-# cannot build a routine around it.
+# Fixed by spec 004 FR-019, amended by 006 FR-010: one row per open line, with
+# the unit beside every quantity so no reader can add tonnes to bags. Neither
+# the set nor the order may change without amending the spec -- a party
+# receiving a differently shaped file each time cannot build a routine on it.
 REMAINING_EXPORT_COLUMNS = [
     "party_name",
     "po_number",
     "material",
+    "unit",
     "ordered_qty",
     "dispatched_qty",
-    "remaining_balance",
+    "remaining_qty",
     "due_date",
 ]
 
@@ -96,24 +98,42 @@ def get_party(party_id: str, tenant: TenantContext = Depends(get_tenant_context)
     )
     calcs = compute_many(tenant.db, open_pos)
     po_items = []
+    open_lines = []
     for po in open_pos:
         calc = calcs[po.id]
-        if calc.status != "fully_dispatched":
-            po_items.append(
-                {
-                    "id": po.id,
-                    "po_number": po.po_number,
-                    "material": po.material,
-                    "remaining_balance": calc.remaining_balance,
-                    "status": calc.status,
-                    "due_date": po.due_date.isoformat(),
-                }
-            )
-    return {"party": PartyOut.model_validate(party), "open_orders": po_items}
-
+        if calc.status == "fully_dispatched":
+            continue
+        open_lines.extend(calc.lines)
+        po_items.append(
+            {
+                "id": po.id,
+                "po_number": po.po_number,
+                "material_summary": calc.material_summary,
+                "item_count": calc.item_count,
+                "lines": [
+                    {
+                        "line_no": line.line_no,
+                        "material": line.material,
+                        "unit": line.unit,
+                        "ordered_qty": line.ordered_qty,
+                        "dispatched_qty": line.dispatched_qty,
+                        "remaining_qty": line.remaining_qty,
+                    }
+                    for line in calc.lines
+                ],
+                "remaining_by_unit": calc.remaining_by_unit,
+                "status": calc.status,
+                "due_date": po.due_date.isoformat(),
+            }
+        )
+    return {
+        "party": PartyOut.model_validate(party),
+        "open_orders": po_items,
+        "remaining_by_unit": remaining_by_unit(open_lines),
+    }
 
 def _remaining_rows(tenant: TenantContext, party: Party) -> list[dict]:
-    """One row per open order, in the column order FR-019 fixes.
+    """One row per open line, in the column order FR-019 fixes.
 
     Figures come from `compute_many` at request time, so an exported Remaining
     is the same number the screen shows (Principle II). Nothing here reads a
@@ -129,22 +149,22 @@ def _remaining_rows(tenant: TenantContext, party: Party) -> list[dict]:
     calcs = compute_many(tenant.db, pos)
     rows = []
     for po in pos:
-        calc = calcs[po.id]
-        if calc.remaining_balance <= 0:
-            continue
-        rows.append(
-            {
-                "party_name": party.party_name,
-                "po_number": po.po_number,
-                "material": po.material,
-                "ordered_qty": float(po.ordered_qty),
-                "dispatched_qty": calc.total_dispatched,
-                "remaining_balance": calc.remaining_balance,
-                "due_date": po.due_date.isoformat(),
-            }
-        )
+        for line in calcs[po.id].lines:
+            if line.remaining_qty <= 0:
+                continue
+            rows.append(
+                {
+                    "party_name": party.party_name,
+                    "po_number": po.po_number,
+                    "material": line.material,
+                    "unit": line.unit,
+                    "ordered_qty": line.ordered_qty,
+                    "dispatched_qty": line.dispatched_qty,
+                    "remaining_qty": line.remaining_qty,
+                    "due_date": po.due_date.isoformat(),
+                }
+            )
     return rows
-
 
 @router.get("/{party_id}/remaining/export")
 def export_party_remaining(

@@ -11,11 +11,11 @@ from datetime import UTC, date, datetime, timedelta
 from src.core.config import settings
 from src.core.db import SessionLocal
 from src.core.security import hash_password
-from src.models.dispatch import Dispatch
+from src.models.dispatch import Dispatch, DispatchLine
 from src.models.membership import Membership
 from src.models.organization import Organization
 from src.models.party import Party
-from src.models.purchase_order import PurchaseOrder
+from src.models.purchase_order import PurchaseOrder, PurchaseOrderLine
 from src.models.subscription import PLAN_LIMITS, Subscription
 from src.models.user import User
 
@@ -66,9 +66,7 @@ def run() -> None:
             organization_id=org.id,
             party_id=steel_co.id,
             po_number="PO-1001",
-            material="Steel Rebar",
-            ordered_qty=100,
-            unit="ton",
+            lines=[PurchaseOrderLine(organization_id=org.id, line_no=1, material="Steel Rebar", ordered_qty=100, unit="ton")],
             order_date=date.today() - timedelta(days=10),
             due_date=date.today() + timedelta(days=5),
         )
@@ -76,17 +74,29 @@ def run() -> None:
             organization_id=org.id,
             party_id=cement_co.id,
             po_number="PO-1002",
-            material="Cement",
-            ordered_qty=500,
-            unit="bags",
+            lines=[PurchaseOrderLine(organization_id=org.id, line_no=1, material="Cement", ordered_qty=500, unit="bags")],
             order_date=date.today() - timedelta(days=20),
             due_date=date.today() - timedelta(days=2),
         )
         db.add_all([po1, po2])
         db.flush()
 
-        db.add(Dispatch(organization_id=org.id, purchase_order_id=po1.id, dispatch_date=date.today() - timedelta(days=3), qty=40))
-        db.add(Dispatch(organization_id=org.id, purchase_order_id=po2.id, dispatch_date=date.today() - timedelta(days=10), qty=200))
+        for po, days_ago, qty in ((po1, 3, 40), (po2, 10, 200)):
+            db.add(
+                Dispatch(
+                    organization_id=org.id,
+                    purchase_order_id=po.id,
+                    dispatch_date=date.today() - timedelta(days=days_ago),
+                    lines=[
+                        DispatchLine(
+                            organization_id=org.id,
+                            purchase_order_id=po.id,
+                            purchase_order_line_id=po.lines[0].id,
+                            qty=qty,
+                        )
+                    ],
+                )
+            )
 
         db.commit()
         print(f"Seeded org {org.id} with owner login owner@demo.orderflow / password123")

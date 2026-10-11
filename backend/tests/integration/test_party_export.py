@@ -15,9 +15,10 @@ EXPECTED_COLUMNS = [
     "party_name",
     "po_number",
     "material",
+    "unit",
     "ordered_qty",
     "dispatched_qty",
-    "remaining_balance",
+    "remaining_qty",
     "due_date",
 ]
 
@@ -37,22 +38,24 @@ def _seed(client, email, org):
             json={
                 "party_id": party,
                 "po_number": number,
-                "material": "TMT Steel Bars 12mm",
-                "ordered_qty": ordered,
-                "unit": "ton",
+                "lines": [{"material": "TMT Steel Bars 12mm", "ordered_qty": ordered, "unit": "ton"}],
                 "order_date": (TODAY - timedelta(days=30)).isoformat(),
                 "due_date": (TODAY + timedelta(days=due_offset)).isoformat(),
             },
             headers=headers,
-        ).json()["id"]
+        ).json()
 
     open_po = po("PO-2001", 1000, 12)
     closed_po = po("PO-2002", 200, 20)
 
     for target, qty in ((open_po, 250), (open_po, 150), (closed_po, 200)):
         resp = client.post(
-            f"/purchase-orders/{target}/dispatches",
-            json={"dispatch_date": TODAY.isoformat(), "qty": qty, "confirm": True},
+            f"/purchase-orders/{target['id']}/dispatches",
+            json={
+                "dispatch_date": TODAY.isoformat(),
+                "lines": [{"purchase_order_line_id": target["lines"][0]["id"], "qty": qty}],
+                "confirm": True,
+            },
             headers=headers,
         )
         assert resp.status_code in (200, 201), resp.text
@@ -89,11 +92,12 @@ def test_figures_are_derived_and_match_the_screen(client):
     row = rows[0]
     assert float(row["ordered_qty"]) == 1000
     assert float(row["dispatched_qty"]) == 400
-    assert float(row["remaining_balance"]) == 600
+    assert float(row["remaining_qty"]) == 600
+    assert row["unit"] == "ton"
 
     screen = client.get(f"/parties/{party}", headers=headers).json()
-    on_screen = {o["po_number"]: o["remaining_balance"] for o in screen["open_orders"]}
-    assert on_screen["PO-2001"] == float(row["remaining_balance"])
+    on_screen = {o["po_number"]: o["lines"][0]["remaining_qty"] for o in screen["open_orders"]}
+    assert on_screen["PO-2001"] == float(row["remaining_qty"])
 
 
 def test_xlsx_and_pdf_formats_download(client):

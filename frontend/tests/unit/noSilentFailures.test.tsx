@@ -95,7 +95,7 @@ describe("report export", () => {
       if (href.includes("/export")) {
         return Promise.resolve(json({ detail: "You don't have access to exports." }, 403));
       }
-      return Promise.resolve(json([{ party_name: "Acme", remaining_balance: 10 }]));
+      return Promise.resolve(json([{ party_name: "Acme", unit: "ton", remaining_qty: 10 }]));
     });
 
     renderPage(<Reports />);
@@ -119,7 +119,7 @@ describe("report export", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((url) => {
       const href = String(url);
       if (href.includes("/export")) return Promise.reject(new TypeError("Failed to fetch"));
-      return Promise.resolve(json([{ party_name: "Acme", remaining_balance: 10 }]));
+      return Promise.resolve(json([{ party_name: "Acme", unit: "ton", remaining_qty: 10 }]));
     });
 
     renderPage(<Reports />);

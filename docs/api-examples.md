@@ -71,23 +71,33 @@ schema changes, this doc and the frontend payloads must be updated together.
 {
   "party_id": "...",
   "po_number": "PO-1001",
-  "material": "Steel",
-  "ordered_qty": 100,
-  "unit": "ton",
   "order_date": "2026-01-01",
   "due_date": "2026-02-01",
-  "notes": "optional"
+  "notes": "optional",
+  "lines": [
+    { "material": "Steel", "ordered_qty": 100, "unit": "ton" },
+    { "material": "Cement", "ordered_qty": 500, "unit": "bag" }
+  ]
 }
 
-// 201 Response
+// 201 Response — remaining is per line; there is no PO-level total across units
 {
-  "id": "...", "party_id": "...", "po_number": "PO-1001", "material": "Steel",
-  "ordered_qty": 100, "unit": "ton", "order_date": "2026-01-01", "due_date": "2026-02-01",
-  "notes": null, "total_dispatched": 0, "remaining_balance": 100,
-  "days_to_delivery": 25, "status": "on_track"
+  "id": "...", "party_id": "...", "po_number": "PO-1001",
+  "order_date": "2026-01-01", "due_date": "2026-02-01", "notes": null,
+  "days_to_delivery": 25, "status": "on_track",
+  "item_count": 2, "material_summary": "Steel +1 more",
+  "lines": [
+    { "id": "L1", "line_no": 1, "material": "Steel", "unit": "ton",
+      "ordered_qty": 100, "dispatched_qty": 0, "remaining_qty": 100 },
+    { "id": "L2", "line_no": 2, "material": "Cement", "unit": "bag",
+      "ordered_qty": 500, "dispatched_qty": 0, "remaining_qty": 500 }
+  ],
+  "remaining_by_unit": [ { "unit": "bag", "remaining": 500 }, { "unit": "ton", "remaining": 100 } ]
 }
 
-// 403 — plan limit reached (max_active_pos)
+// 422 — per-line validation, e.g. loc ["body", "lines", 1, "ordered_qty"]; `lines` must have at least one entry
+
+// 403 — plan limit reached (max_active_pos counts purchase orders, not lines)
 { "detail": "Purchase order limit reached — your trial includes 25 purchase orders. Get in touch and we'll raise it." }
 
 // 403 — read-only lockout (trial expired)
@@ -98,17 +108,24 @@ schema changes, this doc and the frontend payloads must be updated together.
 
 ### `POST /purchase-orders/{id}/dispatches`
 ```json
-// Request
-{ "dispatch_date": "2026-01-15", "qty": 40, "vehicle_ref": "TRK-12", "remarks": "optional", "confirm": false }
+// Request — one truck, any subset of the order's lines
+{
+  "dispatch_date": "2026-01-15", "vehicle_ref": "TRK-12", "remarks": "optional",
+  "lines": [ { "purchase_order_line_id": "L1", "qty": 40 }, { "purchase_order_line_id": "L2", "qty": 200 } ],
+  "confirm": false
+}
 
-// 200 Response — normal dispatch
-{ "dispatch": { "id": "...", "purchase_order_id": "...", "dispatch_date": "2026-01-15", "qty": 40, "vehicle_ref": "TRK-12", "remarks": null }, "warning": null }
+// 201 Response — normal dispatch
+{ "dispatch": { "id": "...", "purchase_order_id": "...", "dispatch_date": "2026-01-15", "vehicle_ref": "TRK-12", "remarks": null,
+                "lines": [ { "purchase_order_line_id": "L1", "line_no": 1, "material": "Steel", "unit": "ton", "qty": 40 } ] },
+  "warning": null, "over_lines": [] }
 
-// 200 Response — over-dispatch without confirm (not persisted)
-{ "dispatch": null, "warning": "This dispatch of 1000 is more than the 60 still remaining on this order. Confirm to record it anyway." }
+// 201 Response — a line would go below zero, confirm=false (nothing persisted)
+{ "dispatch": null,
+  "warning": "Steel: 1000 ton is more than the 60 ton still remaining. Confirm to record it anyway.",
+  "over_lines": [ { "purchase_order_line_id": "L1", "material": "Steel", "unit": "ton", "remaining": 60, "requested": 1000 } ] }
 
-// 200 Response — over-dispatch with confirm=true (persisted)
-{ "dispatch": { "...": "..." }, "warning": null }
+// 422 — a line not on this purchase order, the same line twice, or qty <= 0
 ```
 
 ## Dashboard
@@ -116,14 +133,16 @@ schema changes, this doc and the frontend payloads must be updated together.
 ### `GET /dashboard`
 ```json
 {
-  "total_remaining_balance": 360,
+  "remaining_by_unit": [ { "unit": "bag", "remaining": 300 }, { "unit": "ton", "remaining": 60 } ],
+  "open_po_count": 2,
   "overdue_count": 1,
   "due_soon_count": 0,
   "on_track_count": 1,
   "fully_dispatched_count": 0,
   "total_po_count": 2,
   "party_summary": [
-    { "party_id": "...", "party_name": "Cement Supply Co", "remaining_balance": 300 }
+    { "party_id": "...", "party_name": "Cement Supply Co", "open_po_count": 1,
+      "remaining_by_unit": [ { "unit": "bag", "remaining": 300 } ] }
   ]
 }
 ```

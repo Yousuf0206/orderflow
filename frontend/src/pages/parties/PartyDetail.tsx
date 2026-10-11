@@ -12,12 +12,14 @@ import { Skeleton } from "../../components/ui/Skeleton";
 import { StatusBadge } from "../../components/ui/Badge";
 import { api, describeApiError } from "../../services/apiClient";
 import { downloadExport } from "../../services/download";
+import { formatByUnit, type UnitRemaining } from "../../services/purchaseOrders";
 
 interface OpenOrder {
   id: string;
   po_number: string;
-  material: string;
-  remaining_balance: number;
+  material_summary: string;
+  item_count: number;
+  remaining_by_unit: UnitRemaining[];
   status: string;
   due_date: string;
 }
@@ -25,9 +27,9 @@ interface OpenOrder {
 interface PartyDetailData {
   party: { id: string; party_code: string; party_name: string; city: string | null };
   open_orders: OpenOrder[];
+  // Per unit, never one summed figure across units (Principle XXIX).
+  remaining_by_unit: UnitRemaining[];
 }
-
-const numberFmt = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
 
 export default function PartyDetail() {
   const { id } = useParams();
@@ -126,6 +128,12 @@ function PartyDetailView({ data }: { data: PartyDetailData }) {
           {exportError}
         </p>
       )}
+      {hasOpenOrders && (
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Still to dispatch:{" "}
+          <span className="font-medium text-slate-900 dark:text-white">{formatByUnit(data.remaining_by_unit)}</span>
+        </p>
+      )}
       <Card className="overflow-x-auto">
         {data.open_orders.length === 0 ? (
           <EmptyState icon={Inbox} title="No open orders for this party" />
@@ -148,8 +156,8 @@ function PartyDetailView({ data }: { data: PartyDetailData }) {
                       {po.po_number}
                     </Link>
                   </td>
-                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{po.material}</td>
-                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{numberFmt.format(po.remaining_balance)}</td>
+                  <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{po.material_summary}</td>
+                  <td className="px-5 py-3 font-medium text-slate-900 dark:text-white">{formatByUnit(po.remaining_by_unit)}</td>
                   <td className="px-5 py-3">
                     <StatusBadge status={po.status} />
                   </td>

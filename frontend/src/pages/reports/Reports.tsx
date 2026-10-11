@@ -13,6 +13,7 @@ import { downloadExport } from "../../services/download";
 
 const REPORTS = [
   { key: "remaining-by-party", label: "Remaining by Party" },
+  { key: "remaining-lines", label: "Remaining by Line" },
   { key: "overdue-orders", label: "Overdue Orders" },
   { key: "dispatch-history", label: "Dispatch History" },
 ];

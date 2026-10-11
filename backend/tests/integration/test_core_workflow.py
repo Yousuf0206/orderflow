@@ -1,6 +1,10 @@
 from tests.conftest import auth_headers, signup
 
 
+def _one_line(po: dict, qty: float) -> list[dict]:
+    return [{"purchase_order_line_id": po["lines"][0]["id"], "qty": qty}]
+
+
 def test_create_po_record_dispatch_and_see_live_balance(client):
     tokens = signup(client, email="flow@test.com", org_name="FlowOrg")
     headers = auth_headers(tokens)
@@ -16,32 +20,30 @@ def test_create_po_record_dispatch_and_see_live_balance(client):
         json={
             "party_id": party["id"],
             "po_number": "PO-1",
-            "material": "Steel",
-            "ordered_qty": 100,
-            "unit": "ton",
+            "lines": [{"material": "Steel", "ordered_qty": 100, "unit": "ton"}],
             "order_date": "2026-01-01",
             "due_date": "2026-01-01",
         },
         headers=headers,
     ).json()
-    assert po["remaining_balance"] == 100
+    assert po["lines"][0]["remaining_qty"] == 100
     assert po["status"] == "overdue"  # due_date in the past relative to "today" in tests
 
     r1 = client.post(
         f"/purchase-orders/{po['id']}/dispatches",
-        json={"dispatch_date": "2026-01-02", "qty": 40},
+        json={"dispatch_date": "2026-01-02", "lines": _one_line(po, 40)},
         headers=headers,
     ).json()
-    assert r1["dispatch"]["qty"] == 40
+    assert r1["dispatch"]["lines"][0]["qty"] == 40
 
     po_after = client.get(f"/purchase-orders/{po['id']}", headers=headers).json()
-    assert po_after["total_dispatched"] == 40
-    assert po_after["remaining_balance"] == 60
+    assert po_after["lines"][0]["dispatched_qty"] == 40
+    assert po_after["lines"][0]["remaining_qty"] == 60
 
     # Over-dispatch triggers a warning instead of persisting
     warn = client.post(
         f"/purchase-orders/{po['id']}/dispatches",
-        json={"dispatch_date": "2026-01-03", "qty": 1000},
+        json={"dispatch_date": "2026-01-03", "lines": _one_line(po, 1000)},
         headers=headers,
     ).json()
     assert warn["dispatch"] is None
@@ -53,17 +55,18 @@ def test_create_po_record_dispatch_and_see_live_balance(client):
     # Confirming past the warning proceeds
     confirmed = client.post(
         f"/purchase-orders/{po['id']}/dispatches",
-        json={"dispatch_date": "2026-01-03", "qty": 60, "confirm": True},
+        json={"dispatch_date": "2026-01-03", "lines": _one_line(po, 60), "confirm": True},
         headers=headers,
     ).json()
-    assert confirmed["dispatch"]["qty"] == 60
+    assert confirmed["dispatch"]["lines"][0]["qty"] == 60
 
     po_final = client.get(f"/purchase-orders/{po['id']}", headers=headers).json()
-    assert po_final["remaining_balance"] == 0
+    assert po_final["lines"][0]["remaining_qty"] == 0
     assert po_final["status"] == "fully_dispatched"
 
     dashboard = client.get("/dashboard", headers=headers).json()
-    assert dashboard["total_remaining_balance"] == 0
+    assert "total_remaining_balance" not in dashboard
+    assert dashboard["remaining_by_unit"] == []
 
     report = client.get("/reports/dispatch-history", headers=headers)
     assert report.status_code == 200
@@ -102,9 +105,7 @@ def test_dispatch_exactly_equal_to_remaining_does_not_warn(client):
         json={
             "party_id": party["id"],
             "po_number": "PO-EXACT",
-            "material": "Cement",
-            "ordered_qty": 100,
-            "unit": "bag",
+            "lines": [{"material": "Cement", "ordered_qty": 100, "unit": "bag"}],
             "order_date": "2026-01-01",
             "due_date": "2027-01-01",
         },
@@ -114,19 +115,19 @@ def test_dispatch_exactly_equal_to_remaining_does_not_warn(client):
     # 60 of 100, then exactly the remaining 40.
     client.post(
         f"/purchase-orders/{po['id']}/dispatches",
-        json={"dispatch_date": "2026-01-02", "qty": 60},
+        json={"dispatch_date": "2026-01-02", "lines": _one_line(po, 60)},
         headers=headers,
     )
 
     exact = client.post(
         f"/purchase-orders/{po['id']}/dispatches",
-        json={"dispatch_date": "2026-01-03", "qty": 40},
+        json={"dispatch_date": "2026-01-03", "lines": _one_line(po, 40)},
         headers=headers,
     ).json()
 
     assert exact["warning"] is None, "an exact-fit dispatch must not be treated as an overshoot"
-    assert exact["dispatch"]["qty"] == 40
+    assert exact["dispatch"]["lines"][0]["qty"] == 40
 
     final = client.get(f"/purchase-orders/{po['id']}", headers=headers).json()
-    assert final["remaining_balance"] == 0
+    assert final["lines"][0]["remaining_qty"] == 0
     assert final["status"] == "fully_dispatched"

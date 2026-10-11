@@ -37,9 +37,7 @@ def test_cross_tenant_po_access_returns_404(client):
         json={
             "party_id": party["id"],
             "po_number": "PO-1",
-            "material": "Steel",
-            "ordered_qty": 100,
-            "unit": "ton",
+            "lines": [{"material": "Steel", "ordered_qty": 100, "unit": "ton"}],
             "order_date": "2026-01-01",
             "due_date": "2026-02-01",
         },

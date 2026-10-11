@@ -11,9 +11,7 @@ def _po_payload(party_id: str, n: int) -> dict:
     return {
         "party_id": party_id,
         "po_number": f"PO-{n}",
-        "material": "Steel",
-        "ordered_qty": 10,
-        "unit": "ton",
+        "lines": [{"material": "Steel", "ordered_qty": 10, "unit": "ton"}],
         "order_date": "2026-01-01",
         "due_date": "2027-01-01",
     }

@@ -147,9 +147,7 @@ def test_remaining_by_party_is_available(client):
         json={
             "party_id": party["id"],
             "po_number": "PO-R1",
-            "material": "Steel",
-            "ordered_qty": 100,
-            "unit": "ton",
+            "lines": [{"material": "Steel", "ordered_qty": 100, "unit": "ton"}],
             "order_date": "2026-01-01",
             "due_date": "2027-01-01",
         },
@@ -157,13 +155,17 @@ def test_remaining_by_party_is_available(client):
     ).json()
     client.post(
         f"/purchase-orders/{po['id']}/dispatches",
-        json={"dispatch_date": "2026-01-02", "qty": 40},
+        json={
+            "dispatch_date": "2026-01-02",
+            "lines": [{"purchase_order_line_id": po["lines"][0]["id"], "qty": 40}],
+        },
         headers=headers,
     )
 
     rows = client.get("/reports/remaining-by-party", headers=headers).json()
     row = next(r for r in rows if r["party_name"] == "Report Party")
-    assert row["remaining_balance"] == 60, "report must agree with recorded dispatches"
+    assert row["unit"] == "ton"
+    assert row["remaining_qty"] == 60, "report must agree with recorded dispatches"
 
 
 def test_all_three_export_formats_produce_real_files(client):

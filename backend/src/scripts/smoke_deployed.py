@@ -186,6 +186,14 @@ def run(base: str) -> dict:
 
     party_id = step("create party", create_party)
 
+    # Three lines in different units: the multi-item path constitution XXXII
+    # requires before anyone may claim it.
+    smoke_lines = [
+        {"material": "Smoke Check Steel", "ordered_qty": 100, "unit": "ton"},
+        {"material": "Smoke Check Cement", "ordered_qty": 200, "unit": "bag"},
+        {"material": "Smoke Check Sand", "ordered_qty": 10, "unit": "truck"},
+    ]
+
     def create_po():
         status, body = _request(
             base,
@@ -194,47 +202,63 @@ def run(base: str) -> dict:
             body={
                 "party_id": party_id,
                 "po_number": f"SMK-PO-{stamp}",
-                "material": "Smoke Check Material",
-                "ordered_qty": 100,
-                "unit": "ton",
                 "order_date": today.isoformat(),
                 "due_date": (today + timedelta(days=30)).isoformat(),
+                "lines": smoke_lines,
             },
             token=token,
         )
-        payload = _expect(status, (200, 201), "create purchase order", body)
+        payload = _expect(status, (200, 201), "create multi-line purchase order", body)
+        lines = payload.get("lines") or []
+        if len(lines) != len(smoke_lines):
+            raise StepFailed(
+                "create multi-line purchase order",
+                f"expected {len(smoke_lines)} lines back, got {len(lines)}",
+            )
         created["purchase_order_id"] = payload["id"]
-        return payload["id"]
+        return payload["id"], [line["id"] for line in lines]
 
-    po_id = step("create purchase order", create_po)
+    po_id, line_ids = step("create multi-line purchase order", create_po)
 
+    # One truck carrying two of the three lines, partially.
     def record_dispatch():
         status, body = _request(
             base,
             "POST",
             f"{api}/purchase-orders/{po_id}/dispatches",
-            body={"dispatch_date": today.isoformat(), "qty": 40, "confirm": True},
+            body={
+                "dispatch_date": today.isoformat(),
+                "lines": [
+                    {"purchase_order_line_id": line_ids[0], "qty": 40},
+                    {"purchase_order_line_id": line_ids[1], "qty": 50},
+                ],
+            },
             token=token,
         )
-        _expect(status, (200, 201), "record dispatch", body)
+        payload = _expect(status, (200, 201), "record multi-line dispatch", body)
+        if not payload.get("dispatch"):
+            raise StepFailed(
+                "record multi-line dispatch",
+                f"dispatch was not recorded: {payload.get('warning')!r}",
+            )
 
-    step("record dispatch", record_dispatch)
+    step("record multi-line dispatch", record_dispatch)
 
-    # 7. The product's entire claim: remaining = ordered - dispatched, computed
-    #    rather than stored.
+    # 7. The product's entire claim, per line: remaining = ordered - dispatched,
+    #    computed rather than stored, and the untouched line unchanged.
     def check_remaining():
         status, body = _request(base, "GET", f"{api}/purchase-orders/{po_id}", token=token)
-        payload = _expect(status, (200,), "remaining balance", body)
-        remaining = payload.get("remaining_balance")
-        if remaining != 60:
+        payload = _expect(status, (200,), "remaining per line", body)
+        got = {line["id"]: line.get("remaining_qty") for line in payload.get("lines") or []}
+        expected = {line_ids[0]: 60, line_ids[1]: 150, line_ids[2]: 10}
+        if got != expected:
             raise StepFailed(
-                "remaining balance",
-                f"expected 60 after dispatching 40 of 100, got {remaining!r}",
+                "remaining per line",
+                f"expected remaining 60 ton / 150 bag / 10 truck, got {list(got.values())!r}",
             )
-        return remaining
+        return list(got.values())
 
-    step("remaining balance", check_remaining)
-
+    step("remaining per line", check_remaining)
     return {
         "base_url": base,
         "database_host": health_payload.get("database_host"),

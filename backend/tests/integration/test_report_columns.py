@@ -50,17 +50,19 @@ def test_populated_reports_use_the_same_declared_columns(client):
         json={
             "party_id": party,
             "po_number": "PO-1",
-            "material": "Steel",
-            "ordered_qty": 100,
-            "unit": "ton",
+            "lines": [{"material": "Steel", "ordered_qty": 100, "unit": "ton"}],
             "order_date": "2026-01-01",
             "due_date": "2027-01-01",
         },
         headers=headers,
-    ).json()["id"]
+    ).json()
     client.post(
-        f"/purchase-orders/{po}/dispatches",
-        json={"dispatch_date": "2026-06-01", "qty": 10, "confirm": True},
+        f"/purchase-orders/{po['id']}/dispatches",
+        json={
+            "dispatch_date": "2026-06-01",
+            "lines": [{"purchase_order_line_id": po["lines"][0]["id"], "qty": 10}],
+            "confirm": True,
+        },
         headers=headers,
     )
 

@@ -175,9 +175,60 @@ test("sign up, create PO, record partial dispatch, see live remaining balance", 
     page.locator('[data-capture="dispatch-history"] tbody tr').filter({ hasText: "30" }),
   ).toHaveCount(1, { timeout: 15_000 });
 
-  // The dashboard is where the balance gets trusted, so it has to agree.
+  // The dashboard is where the balance gets trusted, so it has to agree --
+  // per unit, since a single total would add tonnes to bags (Principle XXIX).
   await page.goto("/dashboard");
-  await expectStat(page, "Total Remaining Balance", "70");
+  await expectStat(page, "Open Purchase Orders", "1");
+  await expect(page.locator('[data-stat="Open Purchase Orders"]')).toContainText("70 ton");
+});
+
+test("one truck carries two of three items; each item's remaining updates on its own", async ({ page }) => {
+  const unique = uid();
+
+  await signUp(page, unique);
+  await createParty(page, unique, "Multi Party");
+
+  await page.goto("/purchase-orders/new");
+  await page.getByRole("combobox").selectOption({ label: "Multi Party" });
+  await page.getByLabel("PO Number").fill(`PO-${unique}`);
+  await page.getByLabel("Due Date").fill("2027-01-01");
+  const items = [
+    ["Steel", "50", "tonne"],
+    ["Cement", "200", "bag"],
+    ["Sand", "10", "truck"],
+  ];
+  for (let i = 1; i < items.length; i++) {
+    await page.getByRole("button", { name: /add line/i }).click();
+  }
+  const blocks = page.getByTestId("po-line");
+  await expect(blocks).toHaveCount(3);
+  for (const [i, [material, qty, unit]] of items.entries()) {
+    const block = blocks.nth(i);
+    await block.getByLabel("Material").fill(material);
+    await block.getByLabel("Ordered Qty").fill(qty);
+    await block.getByLabel("Unit").fill(unit);
+  }
+  await page.getByRole("button", { name: /create purchase order/i }).click();
+  await expect(page).toHaveURL(/\/purchase-orders\/(?!new)[^/]+$/);
+  await expect(page.getByText("3 items", { exact: false })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/No dispatches recorded yet/i)).toBeVisible({ timeout: 15_000 });
+
+  // One truck: steel and cement, no sand.
+  await page.getByRole("spinbutton", { name: /steel \(tonne\)/i }).fill("20");
+  await page.getByRole("spinbutton", { name: /cement \(bag\)/i }).fill("100");
+  await page.getByRole("button", { name: /add dispatch/i }).click();
+
+  const remainingOf = (material: string) =>
+    page.locator("table").first().locator("tr", { hasText: material }).locator("td").last();
+  await expect(remainingOf("Steel")).toHaveText("30", { timeout: 15_000 });
+  await expect(remainingOf("Cement")).toHaveText("100");
+  await expect(remainingOf("Sand")).toHaveText("10");
+
+  // History shows one dispatch, broken down by item.
+  const history = page.locator('[data-capture="dispatch-history"] tbody tr');
+  await expect(history).toHaveCount(1, { timeout: 15_000 });
+  await expect(history.first()).toContainText("20 tonne");
+  await expect(history.first()).toContainText("100 bag");
 });
 
 test("over-dispatch is warned about and requires explicit confirmation", async ({ page }) => {
