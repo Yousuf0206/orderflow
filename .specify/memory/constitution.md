@@ -1,91 +1,3 @@
-<!--
-Sync Impact Report
-==================
-Version change: 1.3.0 → 1.4.0 (MINOR: four new principles closing gaps that
-  a production outage and a near-miss exposed; no principle removed or
-  redefined)
-Added sections:
-  - XXIV. Verify the Deployed System, Not Only the Build
-  - XXV. An Empty Export Still Says What It Is
-  - XXVI. A Phone Claim Needs a Phone
-  - XXVII. Tests Never Touch Production
-  - Launch Gates: added "Deployed verification", "Schema before code",
-    "Real-device evidence" and "Test isolation".
-  - Mission restated in the "credible trial" terms of the 2026-10-10 brief.
-Source of this amendment:
-  - An "OrderFlow Completion (Credible Trial)" brief supplied on 2026-10-10,
-    following a production outage the same day.
-  - Three of its seven non-negotiables were already law and are deliberately
-    not duplicated: remaining balance calculated rather than typed is II and
-    XXI; no paid-plan push until Stripe is proven is IX and XIV; and the
-    smoke-before-announce half of its first item is XIII. What XIII did not
-    cover -- and what actually failed -- is verifying the system after it is
-    deployed, which XXIV now carries.
-  - Its fifth item names a task id (T022). XXVI states the substance instead,
-    because a task id stops meaning anything once that feature ships while
-    the rule it stands for does not.
-Known gaps at amendment time (not constitution changes):
-  - XXVI is unsatisfied today: no dispatch has been recorded on a real
-    device, so no release may currently be pitched on mobile dispatch.
-  - XXIV is unsatisfied today: nothing yet runs a smoke check against the
-    deployed system after a deploy. Closing it is feature work.
-Previous report (v1.2.0 → v1.3.0) follows.
-==================
-Version change: 1.2.0 → 1.3.0 (MINOR: four new principles on competitive
-  focus, trust against spreadsheets, phone-first dispatch, and finished work
-  over feature count; no existing principle removed or redefined)
-Added sections:
-  - XX. Own One Job, Visibly
-  - XXI. Beat the Spreadsheet on Trust
-  - XXII. The Phone Is Part of the Product
-  - XXIII. Credibility Over Feature Count
-  - Launch Gates & Release Workflow: added "Phone dispatch evidence" and
-    "Sprint scope check".
-Modified principles: none redefined. Four pre-existing principles are cited
-  from the new ones rather than restated:
-  - II. Remaining Balance is Sacred — XXI adds the user-facing consequence
-    (no human re-entry of a balance), which II did not cover: II forbids the
-    system storing it, not a form asking a person for it.
-  - IV. Simplicity over Features — XXIII addresses breadth (how many things
-    are finished), where IV addresses speed of the core workflow.
-  - VIII. Mobile + Desktop Equality — XXII raises recording a dispatch on a
-    phone from "works" to "comfortable", and makes phone-viewport evidence
-    mandatory rather than optional.
-  - XV. The Landing Page Shows the Product — XX extends the remaining-balance
-    hero from the landing page to the in-app surfaces.
-Removed sections: none
-Deferred items / TODOs: none.
-Source of this amendment:
-  - A "Competitive Difference Sprint" brief supplied on 2026-10-09. Two of
-    its six difference principles are already law and were deliberately not
-    duplicated: "Show the product before signup" is Principle XV, and
-    "Trial-first, paid later" is Principles IX, XIV, and XVI. Three of its
-    four non-negotiables are likewise already law: core math is II,
-    screenshots matching production is XIX, and the pre-deploy smoke run is
-    XIII. Only its fourth non-negotiable (phone-viewport evidence for the
-    dispatch path) was not covered, and XXII plus the new gate carry it.
-  - The brief's "PWA-level" phrasing is treated as a comfort bar, not as a
-    requirement to ship a web app manifest, service worker, or installable
-    app. No such requirement is created here; one would need its own
-    amendment, and the Constraints section still defers native mobile.
-Capability check performed at amendment time (not a constitution change):
-  - XXI names four capabilities. All four exist today: live remaining
-    (src/services/po_calc.py), party views (frontend PartyDetail),
-    export (backend/src/api/reports.py, frontend Reports.tsx), and overdue
-    visibility (backend/src/api/dashboard.py, statusMeta.ts). XXI therefore
-    protects shipped behaviour rather than promising unbuilt work.
-Templates requiring follow-up:
-  - .specify/templates/plan-template.md and spec-template.md do not
-    reference principle counts or names directly; re-check during the next
-    /speckit-plan run for alignment with Principles IX–XXIII.
-Note on the file referenced by Principle XIV:
-  - Principle XIV points at a feature-scoped path. That is deliberate --
-    it is where the evidence lives -- and the accompanying substance
-    restatement is what keeps the gate meaningful if the path changes. A
-    future amendment that supersedes those phases should update the pointer
-    and may raise the bar, but may not lower it.
--->
-
 # OrderFlow Constitution
 
 OrderFlow is a multi-tenant SaaS for traders and dealers to track Purchase
@@ -413,6 +325,87 @@ production — schema changes to live customer data as a side effect of running
 there, and a default that can destroy real data is a defect regardless of who
 is at the keyboard.
 
+### XXVIII. A Purchase Order Is a Header With Lines
+One real-world purchase order MUST map to exactly one OrderFlow purchase order,
+which MAY contain many materials. The header MUST carry party, PO number,
+order date, due date, notes, and organization; each line MUST carry material,
+ordered quantity, unit, and its position in the order. An active purchase order
+MUST have at least one line at all times — no path MAY leave it with zero.
+
+Plan limits MUST count purchase orders, not lines: `max_active_pos` counts
+headers, and a fifty-line purchase order consumes one slot.
+
+**Rationale:** a trader's PO lists cement, steel, and sand on one sheet of
+paper. Forcing that into three OrderFlow orders makes the product disagree with
+the document it is meant to track, and charging plan slots per line would
+punish exactly the customers with the largest orders.
+
+### XXIX. Remaining Is Per Line, and Units Never Mix
+Principle II applies at line grain: for each line, remaining = ordered quantity
+− SUM(dispatch quantities recorded against that line), computed live and never
+stored. Quantities in different units MUST NEVER be added together. No
+dashboard, summary, party view, or export MAY present a single cross-unit
+"total remaining" as if tonnes, bags, and pieces were comparable.
+
+A purchase order's status MUST be derived from its lines. It is fully
+dispatched only when every line has remaining ≤ 0 under the product's rounding
+rules. Open, due-soon, and overdue status MUST consider only open lines against
+the PO due date, and the worst open line drives the severity shown.
+
+Exports MUST be line-grained: one spreadsheet row per PO line, with PO number
+and party repeated across rows as needed. Principle XXV still holds — an empty
+report MUST still carry its header row.
+
+**Rationale:** "12 remaining" means nothing if it is 10 tonnes plus 2 bags. A
+summed figure across units is not a simplification, it is a wrong number, and
+Principle XXI exists so that the system's numbers are the ones a trader can
+trust over their spreadsheet.
+
+### XXX. One Truck, Many Lines
+A dispatch MUST have one date, one vehicle or reference, and one set of
+remarks, and MAY record quantities against one or more lines of the same
+purchase order. A line MAY be omitted from a dispatch. A dispatch MUST NOT
+record quantities against lines of a different purchase order. Over-dispatch
+rules MUST be evaluated per line; a PO-level total within limit MUST NOT mask a
+single line that exceeds its own ordered quantity.
+
+**Rationale:** one truck leaving the yard carries several materials for one
+order. Making the user record that as several dispatches turns one real event
+into several records and breaks the 60-second workflow of Principle IV.
+
+### XXXI. Migration Keeps Every Record
+Moving to header-and-line purchase orders MUST NOT lose or alter history.
+Every existing single-material purchase order MUST become a header with exactly
+one line, and every existing dispatch MUST become a dispatch header with one
+dispatch line against that sole line. Quantities, units, and dates MUST be
+identical before and after, and every pre-migration remaining balance MUST
+equal its post-migration line remaining.
+
+The migration MUST be rehearsed against a copy of the pre-migration schema and
+data before it reaches production. Startup migration MAY apply it only after
+that rehearsal has passed, and a migration failure MUST stop startup loudly
+rather than let code run against a half-migrated schema (Principle XXIV).
+
+**Rationale:** existing customers' balances are the product. A migration that
+silently drops a dispatch or rounds a quantity rewrites the one number they
+rely on, and nobody notices until a truck is short.
+
+### XXXII. Multi-Item Is Claimed Only When It Works in Production
+Multi-item purchase orders MUST NOT be announced, described on the landing
+page, or mentioned in beta messaging until multi-line create, detail view,
+multi-line dispatch, and line-grained export all complete end to end on the
+deployed production system. Until then, OrderFlow MUST either hold the
+announcement or state the single-material limitation explicitly.
+
+The deployed smoke check for a release containing this capability MUST
+exercise at least: create a multi-line purchase order → record a partial
+dispatch covering more than one line → confirm remaining per line.
+
+**Rationale:** this is Principles XXIII and XXIV applied to the next claim most
+likely to be made before it is true. A trader who signs up because the page says
+"multi-item" and finds one material per order has been lied to once, and will
+assume the remaining balances are lying too.
+
 ## Constraints
 
 - Primary market: SME traders (steel, cement, hardware, building materials).
@@ -426,6 +419,10 @@ is at the keyboard.
 - The domain engine MUST NOT be rewritten unless a specific bug is proven
   against it with a reproducing case.
 - Fixing reliability and clarity takes precedence over adding features.
+- Multi-item purchase orders (XXVIII–XXXII) carry a PO-level due date only.
+  Per-line due dates, inventory or stock on hand, a buyer portal, invoicing,
+  and native mobile apps are out of scope for that work, and it MUST NOT change
+  the trial-first strategy of Principles IX and XIV.
 
 ## Launch Gates & Release Workflow
 
@@ -473,6 +470,15 @@ is at the keyboard.
   startup, or database connection resolution MUST state what stops a test run
   reaching production (Principle XXVII), and the answer MUST be a default
   rather than a convention.
+- **Migration rehearsal.** A migration that reshapes business data — the
+  header-and-line migration in particular — MUST be run against a copy of the
+  pre-migration schema and data, with before/after quantities and remaining
+  balances compared, before it reaches production (Principle XXXI).
+- **Unit check.** Any change that sums, aggregates, or totals quantities MUST
+  state at review time how it avoids adding across units (Principle XXIX).
+- **Multi-line smoke.** A release containing multi-item purchase orders MUST
+  record a deployed run of multi-line create → partial multi-line dispatch →
+  per-line remaining before any multi-item claim is made (Principle XXXII).
 
 ## Governance
 
@@ -521,4 +527,10 @@ staying visible, never asking a person for a balance, a dispatch being
 comfortable on a phone, and shipping only what is finished are properties of
 the product rather than of this sprint.
 
-**Version**: 1.4.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-10
+Principles XXVIII through XXXII are not phase-scoped. A purchase order matching
+its paper, never adding across units, recording a truck as one dispatch, and
+migrating without loss are properties of the data model. XXXII's hold on the
+multi-item claim lapses once its conditions are met for a release, and is
+re-earned by any later release that breaks them.
+
+**Version**: 1.5.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-12
