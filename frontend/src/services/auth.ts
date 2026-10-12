@@ -5,6 +5,8 @@ export interface CurrentUserInfo {
   organization: { id: string; name: string } | null;
   role: string | null;
   is_super_admin: boolean;
+  /** Delivery-note scanning switched on for this deployment (spec 008). */
+  scan_enabled?: boolean;
 }
 
 export function isAuthenticated(): boolean {

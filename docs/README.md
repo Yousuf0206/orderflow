@@ -106,6 +106,25 @@ Billing endpoints require `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, and
 unpredictably — the rest of the app (including the free trial) works without Stripe
 configured.
 
+### Delivery-note scanning (spec 008)
+
+Off unless `SCAN_ENABLED=true`. When on, `POST /purchase-orders/{id}/dispatches/parse-document`
+sends the photo to the reading service and returns a draft; only the normal dispatch POST records
+anything.
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `SCAN_ENABLED` | `false` | Shows the Scan delivery note button and enables the endpoint |
+| `ANTHROPIC_API_KEY` | — | Reading-service key. Staging key for development; never commit it |
+| `ANTHROPIC_ZERO_RETENTION_CONFIRMED` | `false` | Set `true` only after Anthropic has enabled Zero Data Retention for the key's organization. Scanning refuses to run without it, and with Fable/Mythos models (they require 30-day retention) |
+| `SCAN_MODEL` | `claude-sonnet-5-5` | Vision model id |
+| `SCAN_DAILY_LIMIT_PER_ORG` | `50` | Scans per organization per UTC day, failed reads included; over it → 429 |
+| `SCAN_MAX_BYTES` | `4000000` | Upload limit (Vercel caps request bodies at 4.5 MB) |
+
+Images and their read text are deleted after 30 days by the daily purge cron. Measure reading
+accuracy on real notes with `python -m src.scripts.scan_accuracy <folder>` (see the script's
+docstring); super admins can see live success measures at `GET /admin/scan-metrics`.
+
 ## Frontend
 
 ```bash

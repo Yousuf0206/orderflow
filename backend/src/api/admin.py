@@ -6,6 +6,7 @@ from src.core.security import require_super_admin
 from src.models.membership import Membership
 from src.models.organization import Organization
 from src.models.purchase_order import PurchaseOrder
+from src.services.scan_metrics import scan_metrics
 
 router = APIRouter(prefix="/admin", tags=["super-admin"], dependencies=[Depends(require_super_admin)])
 
@@ -65,3 +66,9 @@ def platform_metrics(db: Session = Depends(get_db)) -> dict:
         "suspended_count": db.query(Organization).filter(Organization.is_suspended.is_(True)).count(),
         "total_active_pos": db.query(PurchaseOrder).filter(PurchaseOrder.deleted_at.is_(None)).count(),
     }
+
+
+@router.get("/scan-metrics")
+def delivery_note_scan_metrics(db: Session = Depends(get_db)) -> dict:
+    """Spec 008 success measures across all organizations; counts only."""
+    return scan_metrics(db)

@@ -4,6 +4,10 @@
 <dict>
   <key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>OrderFlow uses the camera to photograph delivery notes so it can fill in a dispatch for you to check.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>OrderFlow opens your photos so you can pick a picture of a delivery note to fill in a dispatch for you to check.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>

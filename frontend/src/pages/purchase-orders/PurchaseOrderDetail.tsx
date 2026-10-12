@@ -14,6 +14,9 @@ import { KpiSkeletonRow, Skeleton, TableSkeleton } from "../../components/ui/Ske
 import StatCard from "../../components/ui/StatCard";
 import { usePermissions } from "../../hooks/usePermissions";
 import { api, describeApiError, NetworkError } from "../../services/apiClient";
+import { getMe } from "../../services/auth";
+import { needsCheck, type ScanDraft } from "../../services/scans";
+import ScanDraftPanel from "./ScanDraftPanel";
 import {
   type Dispatch,
   type DispatchCreateResponse,
@@ -38,6 +41,72 @@ export default function PurchaseOrderDetail() {
   const [saving, setSaving] = useState(false);
   // True while re-reading the order after a save whose outcome is unknown.
   const [verifying, setVerifying] = useState(false);
+  // A delivery-note scan filling this form (spec 008). Only a draft: the
+  // form's own submit is still the one way a dispatch is recorded.
+  const [draft, setDraft] = useState<ScanDraft | null>(null);
+  const [rowLines, setRowLines] = useState<Record<number, string>>({});
+  // Fields read with doubt, keyed "dispatch_date", "vehicle_ref", or a line id.
+  const [toCheck, setToCheck] = useState<Set<string>>(new Set());
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: getMe, staleTime: 5 * 60 * 1000 });
+
+  function applyDraft(d: ScanDraft) {
+    const check = new Set<string>();
+    if (needsCheck(d.document_date)) check.add("dispatch_date");
+    if (needsCheck(d.vehicle_ref)) check.add("vehicle_ref");
+    const next: Record<string, string> = {};
+    for (const row of d.lines) {
+      if (!row.matched_line_id) continue;
+      next[row.matched_line_id] = row.qty.value ?? "";
+      if (row.qty.confidence !== "high" || row.match_confidence === "low" || row.qty.value === null) {
+        check.add(row.matched_line_id);
+      }
+    }
+    setHeader({
+      dispatch_date: d.document_date.value ?? blankHeader().dispatch_date,
+      vehicle_ref: d.vehicle_ref.value ?? "",
+      remarks: "",
+    });
+    setQtys(next);
+    setToCheck(check);
+    setRowLines({});
+    setDraft(d);
+    setWarning(null);
+    setOverLineIds(new Set());
+    setSubmitError(null);
+  }
+
+  /** The user placed an unmatched read row on a line of this order, or skipped it. */
+  function assignRow(row: number, lineId: string) {
+    const previous = rowLines[row];
+    const value = draft?.lines[row]?.qty.value ?? "";
+    setQtys((prev) => {
+      const next = { ...prev };
+      if (previous) delete next[previous];
+      if (lineId) next[lineId] = value;
+      return next;
+    });
+    setToCheck((prev) => {
+      const next = new Set(prev);
+      if (previous) next.delete(previous);
+      if (lineId) next.add(lineId);
+      return next;
+    });
+    setRowLines((prev) => ({ ...prev, [row]: lineId }));
+  }
+
+  function clearDraft() {
+    setDraft(null);
+    setRowLines({});
+    setToCheck(new Set());
+  }
+
+  function discardDraft() {
+    clearDraft();
+    setHeader(blankHeader());
+    setQtys({});
+  }
+
+  const checkHint = "Check this — read from the note";
 
   const {
     data: po,
@@ -68,6 +137,12 @@ export default function PurchaseOrderDetail() {
 
   function updateQty(lineId: string, value: string) {
     setQtys((prev) => ({ ...prev, [lineId]: value }));
+    setToCheck((prev) => {
+      if (!prev.has(lineId)) return prev;
+      const next = new Set(prev);
+      next.delete(lineId);
+      return next;
+    });
     // Editing the figures invalidates a warning about the old ones.
     setWarning(null);
     setOverLineIds(new Set());
@@ -90,6 +165,7 @@ export default function PurchaseOrderDetail() {
         remarks: header.remarks || null,
         lines,
         confirm,
+        ...(draft ? { source_scan_id: draft.scan_id } : {}),
       });
       if (result.warning && !result.dispatch) {
         setWarning(result.warning);
@@ -100,6 +176,7 @@ export default function PurchaseOrderDetail() {
       setOverLineIds(new Set());
       setHeader(blankHeader());
       setQtys({});
+      clearDraft();
       queryClient.invalidateQueries({ queryKey: ["purchase-order", id] });
       queryClient.invalidateQueries({ queryKey: ["dispatches", id] });
     } catch (err) {
@@ -152,6 +229,7 @@ export default function PurchaseOrderDetail() {
     >
       {(po) => {
         const single = po.lines.length === 1 ? po.lines[0] : null;
+        const openLines = po.lines.filter((line) => line.remaining_qty > 0);
         return (
     // po-page is the hero shot: the whole screen, so a visitor sees software
     // rather than a thin strip of numbers. po-summary inside it is the tight
@@ -227,6 +305,16 @@ export default function PurchaseOrderDetail() {
           <RoleRequired action="Recording dispatches" role="Staff" />
         ) : (
         <div className="space-y-4 p-5">
+          {me?.scan_enabled && openLines.length > 0 && (
+            <ScanDraftPanel
+              poId={po.id}
+              openLines={openLines}
+              draft={draft}
+              onDraft={applyDraft}
+              onAssign={assignRow}
+              onDiscard={discardDraft}
+            />
+          )}
           {submitError && (
             <p
               role="alert"
@@ -258,7 +346,11 @@ export default function PurchaseOrderDetail() {
             }}
             className="grid grid-cols-1 gap-4 sm:grid-cols-2"
           >
-            <FormField label="Dispatch Date" required>
+            <FormField
+              label="Dispatch Date"
+              required
+              hint={toCheck.has("dispatch_date") ? checkHint : undefined}
+            >
               <Input
                 type="date"
                 required
@@ -266,7 +358,7 @@ export default function PurchaseOrderDetail() {
                 onChange={(e) => updateHeader("dispatch_date", e.target.value)}
               />
             </FormField>
-            <FormField label="Vehicle / Ref">
+            <FormField label="Vehicle / Ref" hint={toCheck.has("vehicle_ref") ? checkHint : undefined}>
               <Input value={header.vehicle_ref} onChange={(e) => updateHeader("vehicle_ref", e.target.value)} />
             </FormField>
 
@@ -282,7 +374,11 @@ export default function PurchaseOrderDetail() {
                 <FormField
                   key={line.id}
                   label={single ? "Qty" : `${line.material} (${line.unit})`}
-                  hint={`${formatQty(line.remaining_qty)} ${line.unit} remaining`}
+                  hint={
+                    toCheck.has(line.id)
+                      ? `${checkHint} · ${formatQty(line.remaining_qty)} ${line.unit} remaining`
+                      : `${formatQty(line.remaining_qty)} ${line.unit} remaining`
+                  }
                   error={overLineIds.has(line.id) ? "More than remains on this item" : undefined}
                 >
                   <Input
@@ -305,7 +401,7 @@ export default function PurchaseOrderDetail() {
             {/* Full width on a phone, and last in document flow so an
                 on-screen keyboard over a field above does not cover it. */}
             <Button type="submit" disabled={saving || verifying} block className="sm:col-span-2">
-              {verifying ? "Checking..." : saving ? "Saving..." : "Add Dispatch"}
+              {verifying ? "Checking..." : saving ? "Saving..." : draft ? "Confirm dispatch" : "Add Dispatch"}
             </Button>
           </form>
         </div>

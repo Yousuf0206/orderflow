@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from src.models.account_purge import AccountPurgeRecord
 from src.models.audit_log import AuditLogEntry
 from src.models.dispatch import Dispatch, DispatchLine
+from src.models.document_scan import DocumentScan, ScanImage
 from src.models.membership import Membership
 from src.models.notification import Notification
 from src.models.organization import Organization
@@ -29,6 +30,7 @@ from src.models.subscription import Subscription
 from src.models.user import User
 
 PURGE_AFTER_DAYS = 30
+SCAN_RETENTION_DAYS = 30
 
 
 @dataclass
@@ -121,7 +123,27 @@ def delete_account(db: Session, user: User, *, now: datetime | None = None) -> D
     return plan
 
 
+def _delete_scans(db: Session, *criteria) -> None:
+    """Delivery-note scans and their images (spec 008). Images first: bulk
+    deletes don't fire the ON DELETE CASCADE on every database."""
+    scan_ids = [r[0] for r in db.query(DocumentScan.id).filter(*criteria)]
+    if scan_ids:
+        db.query(ScanImage).filter(ScanImage.scan_id.in_(scan_ids)).delete(synchronize_session=False)
+        db.query(DocumentScan).filter(DocumentScan.id.in_(scan_ids)).delete(synchronize_session=False)
+
+
+def expire_scans(db: Session, *, now: datetime) -> int:
+    """Constitution XLI: a delivery-note image and its read text live 30 days."""
+    cutoff = now - timedelta(days=SCAN_RETENTION_DAYS)
+    removed = db.query(ScanImage).filter(ScanImage.created_at < cutoff).delete(synchronize_session=False)
+    db.query(DocumentScan).filter(
+        DocumentScan.created_at < cutoff, DocumentScan.draft_json.isnot(None)
+    ).update({DocumentScan.draft_json: None}, synchronize_session=False)
+    return removed
+
+
 def _purge_organization(db: Session, org_id: str) -> None:
+    _delete_scans(db, DocumentScan.organization_id == org_id)
     po_ids = [r[0] for r in db.query(PurchaseOrder.id).filter(PurchaseOrder.organization_id == org_id)]
     dispatch_ids = [r[0] for r in db.query(Dispatch.id).filter(Dispatch.organization_id == org_id)]
     if dispatch_ids:
@@ -172,6 +194,7 @@ def purge_due(db: Session, *, now: datetime | None = None) -> dict[str, int]:
         # authored there stay with the organization; the actor id no longer
         # resolves to anyone.
         db.query(Membership).filter(Membership.user_id == user.id).delete(synchronize_session=False)
+        _delete_scans(db, DocumentScan.user_id == user.id)
         db.query(Notification).filter(Notification.recipient_user_id == user.id).delete(
             synchronize_session=False
         )

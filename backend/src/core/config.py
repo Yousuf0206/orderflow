@@ -45,6 +45,22 @@ class Settings(BaseSettings):
     # scheduled endpoints refuse to run.
     cron_secret: str = ""
 
+    # Delivery-note scanning (spec 008). Off until the vendor's terms, the
+    # privacy policy, and real-device runs are recorded (tasks T041-T043).
+    # The key is only ever read here and sent to the reading service.
+    scan_enabled: bool = False
+    # Set true only once Anthropic has enabled Zero Data Retention for the
+    # organization that owns ANTHROPIC_API_KEY, and the agreement is recorded
+    # (task T041). Without it the API keeps inputs up to 30 days, so scanning
+    # refuses to run: the owner's rule is that no note image is retained or
+    # used for training by the reading service.
+    anthropic_zero_retention_confirmed: bool = False
+    anthropic_api_key: str = ""
+    scan_model: str = "claude-sonnet-5-5"
+    scan_daily_limit_per_org: int = 50
+    # Under Vercel's 4.5 MB request-body cap (spec 008 research R5).
+    scan_max_bytes: int = 4_000_000
+
     # Run `alembic upgrade head` at startup, before serving. On by default
     # because nothing else in this pipeline owns that ordering: Vercel deploys
     # on push, CI runs alongside it without deploying, and a code-ahead-of-

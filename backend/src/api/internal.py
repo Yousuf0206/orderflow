@@ -7,13 +7,14 @@ nobody controls.
 """
 
 import hmac
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.core.config import settings
 from src.core.db import get_db
-from src.services.account_deletion import purge_due
+from src.services.account_deletion import expire_scans, purge_due
 
 router = APIRouter(prefix="/internal", tags=["internal"], include_in_schema=False)
 
@@ -28,7 +29,9 @@ def _require_cron_secret(authorization: str | None = Header(default=None)) -> No
 
 @router.get("/purge-deleted-accounts", dependencies=[Depends(_require_cron_secret)])
 def purge_deleted_accounts(db: Session = Depends(get_db)) -> dict:
-    """Daily: removes accounts whose 30-day window has passed (constitution VII)."""
+    """Daily: removes accounts whose 30-day window has passed (constitution VII),
+    and delivery-note images older than 30 days (XLI)."""
     counts = purge_due(db)
+    scan_images = expire_scans(db, now=datetime.now(UTC))
     db.commit()
-    return {"purged": counts}
+    return {"purged": counts, "expired_scan_images": scan_images}

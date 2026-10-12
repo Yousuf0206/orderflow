@@ -30,6 +30,7 @@ from src.schemas.auth import (
 )
 from src.services import account_deletion
 from src.services.email import send_email
+from src.services.scan_reader import zero_retention_ready
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -83,6 +84,8 @@ def me(current: CurrentUser = Depends(get_current_user), db: Session = Depends(g
         "organization": {"id": org.id, "name": org.name} if org else None,
         "role": current.role,
         "is_super_admin": current.user.is_super_admin,
+        # Deployment-wide switch (spec 008); the UI hides the scan action when off.
+        "scan_enabled": settings.scan_enabled and zero_retention_ready(),
     }
 
 

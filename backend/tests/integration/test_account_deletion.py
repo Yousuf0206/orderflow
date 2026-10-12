@@ -164,7 +164,7 @@ def test_cron_endpoint_refuses_without_a_configured_secret(client, monkeypatch):
     assert client.get("/internal/purge-deleted-accounts", headers={"Authorization": "Bearer wrong"}).status_code == 401
     ok = client.get("/internal/purge-deleted-accounts", headers={"Authorization": "Bearer s3cret"})
     assert ok.status_code == 200
-    assert ok.json() == {"purged": {"organization": 0, "user": 0}}
+    assert ok.json() == {"purged": {"organization": 0, "user": 0}, "expired_scan_images": 0}
 
 
 def test_app_origins_are_allowed_and_others_are_not(client):

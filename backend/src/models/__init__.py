@@ -1,6 +1,7 @@
 from src.models.account_purge import AccountPurgeRecord
 from src.models.audit_log import AuditLogEntry
 from src.models.dispatch import Dispatch, DispatchLine
+from src.models.document_scan import DocumentScan, ScanImage
 from src.models.membership import Membership
 from src.models.notification import Notification
 from src.models.organization import Organization
@@ -14,12 +15,14 @@ __all__ = [
     "AuditLogEntry",
     "Dispatch",
     "DispatchLine",
+    "DocumentScan",
     "Membership",
     "Notification",
     "Organization",
     "Party",
     "PurchaseOrder",
     "PurchaseOrderLine",
+    "ScanImage",
     "Subscription",
     "User",
 ]
