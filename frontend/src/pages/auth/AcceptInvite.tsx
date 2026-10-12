@@ -21,7 +21,7 @@ export default function AcceptInvite() {
     setSaving(true);
     try {
       const tokens = await api.post<TokenPair>("/auth/invite/accept", { token, password });
-      setTokens(tokens);
+      await setTokens(tokens);
       navigate("/dashboard");
     } catch {
       setError("This invite link is invalid or has expired.");

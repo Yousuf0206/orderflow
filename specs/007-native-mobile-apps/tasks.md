@@ -35,17 +35,17 @@ are never checked without a record in `docs/qa/records/` or `docs/mobile/RELEASE
 
 ## Phase B: Capacitor
 
-- [ ] T010 (B1) Add Capacitor to `frontend/`: `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor/android`; `frontend/capacitor.config.ts` with appId `app.orderflow.mobile`, appName `OrderFlow`, webDir `dist`, `android.scheme`/`androidScheme: "https"`; generate and commit `frontend/ios/` and `frontend/android/`
-- [ ] T011 (B2) Release config: build with `VITE_API_BASE_URL=https://purchaseorderflow.vercel.app/api`; separate dev config `frontend/capacitor.config.dev.ts` with live reload against local Vite + local/staging API only (R10); `npm run build:app` and `npm run cap:dev` scripts in `frontend/package.json`
+- [X] T010 (B1) Add Capacitor to `frontend/`: `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor/android`; `frontend/capacitor.config.ts` with appId `app.orderflow.mobile`, appName `OrderFlow`, webDir `dist`, `android.scheme`/`androidScheme: "https"`; generate and commit `frontend/ios/` and `frontend/android/`
+- [X] T011 (B2) Release config: build with `VITE_API_BASE_URL=https://purchaseorderflow.vercel.app/api`; separate dev config `frontend/capacitor.config.dev.ts` with live reload against local Vite + local/staging API only (R10); `npm run build:app` and `npm run cap:dev` scripts in `frontend/package.json`
 - [X] T012 [P] Backend CORS: add `capacitor://localhost` and `https://localhost` to `cors_origins` default/env in `backend/src/core/config.py`; test in `backend/tests/integration/` that preflight from both origins succeeds and an unknown origin does not
-- [ ] T013 [P] [US2] Platform module `frontend/src/platform/` (`isNative`, `tokenStore.hydrate/get/set`, `startRoute`, `openExternal`) per `contracts/app-shell.md`; choose and add the secure-storage plugin after checking maintenance and current-Capacitor support (R4); Vitest tests with the plugin mocked
-- [ ] T014 [US2] (B5) Route `frontend/src/services/apiClient.ts` `getTokens/setTokens` through `tokenStore`; hydrate before first render in `frontend/src/main.tsx`; sign-out clears memory + secure store; web behaviour and existing tests unchanged
-- [ ] T015 [US1] Native routing per R5/R6 in `frontend/src/App.tsx`: in native builds `/` → `startRoute`, `/pricing` and landing not routed, billing upgrade surfaces hidden; Privacy/Terms via `openExternal` (`@capacitor/browser`); Vitest with `isNative` mocked true
-- [ ] T016 [US4] (B4) Icons + splash: sources in `frontend/resources/` (icon 1024², adaptive foreground/background, splash), generated with `@capacitor/assets`; `@capacitor/splash-screen` hides after first route render
-- [ ] T017 [US4] Status bar (`@capacitor/status-bar`) styled to the app; safe-area insets (`env(safe-area-inset-*)`, `viewport-fit=cover`) in `frontend/index.html` and `frontend/src/index.css` for app shell header, menu drawer, and bottom of forms
-- [ ] T018 [US4] Orientation: portrait on iPhone, all on iPad (`frontend/ios/App/App/Info.plist`); Android portrait in `AndroidManifest.xml`
-- [ ] T019 Android hardening per R11: `minSdkVersion 26`, `usesCleartextTraffic=false`, HTTPS-only network security config, WebView debugging off in release (`frontend/android/`)
-- [ ] T020 iOS: deployment target 15.0, iPhone + iPad device family, no arbitrary loads (`frontend/ios/App/`)
+- [X] T013 [P] [US2] Platform module `frontend/src/platform/` (`isNative`, `tokenStore.hydrate/get/set`, `startRoute`, `openExternal`) per `contracts/app-shell.md`; choose and add the secure-storage plugin after checking maintenance and current-Capacitor support (R4); Vitest tests with the plugin mocked
+- [X] T014 [US2] (B5) Route `frontend/src/services/apiClient.ts` `getTokens/setTokens` through `tokenStore`; hydrate before first render in `frontend/src/main.tsx`; sign-out clears memory + secure store; web behaviour and existing tests unchanged
+- [X] T015 [US1] Native routing per R5/R6 in `frontend/src/App.tsx`: in native builds `/` → `startRoute`, `/pricing` and landing not routed, billing upgrade surfaces hidden; Privacy/Terms via `openExternal` (`@capacitor/browser`); Vitest with `isNative` mocked true
+- [X] T016 [US4] (B4) Icons + splash: sources in `frontend/resources/` (icon 1024², adaptive foreground/background, splash), generated with `@capacitor/assets`; `@capacitor/splash-screen` hides after first route render
+- [X] T017 [US4] Status bar (`@capacitor/status-bar`) styled to the app; safe-area insets (`env(safe-area-inset-*)`, `viewport-fit=cover`) in `frontend/index.html` and `frontend/src/index.css` for app shell header, menu drawer, and bottom of forms
+- [X] T018 [US4] Orientation: portrait on iPhone, all on iPad (`frontend/ios/App/App/Info.plist`); Android portrait in `AndroidManifest.xml`
+- [X] T019 Android hardening per R11: `minSdkVersion 26`, `usesCleartextTraffic=false`, HTTPS-only network security config, WebView debugging off in release (`frontend/android/`)
+- [X] T020 iOS: deployment target 15.0, iPhone + iPad device family, no arbitrary loads (`frontend/ios/App/`)
 - [ ] T021 [H] (B3) Run on an Android emulator + one physical Android phone, and an iOS simulator + one physical iPhone (macOS + Xcode); record in `docs/qa/records/`
 - [ ] T022 [H] [US2] (B5) On each physical device: sign in, force-quit, reopen (signed in); reboot (signed in); sign out, reopen (signed out); record
 - [ ] T023 [H] [US3] On each physical device: dashboard counts, a party's per-unit remaining, and a filtered PO list equal the web at the same moment; record
@@ -67,8 +67,8 @@ are never checked without a record in `docs/qa/records/` or `docs/mobile/RELEASE
 ## Phase C: Store path
 
 - [ ] T040 [H] (C1) Apple Developer Program membership and Google Play developer account under the business; record account owner in `docs/mobile/RELEASE.md` (no credentials in the repo)
-- [ ] T041 (C2) Privacy policy live at `https://purchaseorderflow.vercel.app/privacy` with T036 content; verify deployed (XXIV)
-- [ ] T042 `docs/mobile/RELEASE.md`: version/build numbering (same version on both platforms), signing steps, upload steps, QA record template, store listing text with no offline/push/feature claims beyond the build (FR-011, XXXVII)
+- [X] T041 (C2) Privacy policy live at `https://purchaseorderflow.vercel.app/privacy` with T036 content; verify deployed (XXIV)
+- [X] T042 `docs/mobile/RELEASE.md`: version/build numbering (same version on both platforms), signing steps, upload steps, QA record template, store listing text with no offline/push/feature claims beyond the build (FR-011, XXXVII)
 - [ ] T043 [P] Store screenshots from the release build on device sizes each store requires: dashboard, PO detail, dispatch (iPhone 6.7"/6.5", iPad 13", Android phone); stored under `docs/mobile/screenshots/`
 - [ ] T044 [H] (C3) TestFlight build uploaded (macOS + Xcode); external testing group created
 - [ ] T045 [H] (C4) Play internal testing build uploaded; testers invited
@@ -100,6 +100,8 @@ records a truck from an installed build. Then D (required for iOS review), then 
 submitted to a store until T046–T047 are recorded.
 
 **Implementation notes (2026-10-12)**: T031 revokes access by checking `deleted_at` on user, membership and organization on every request instead of a `tokens_valid_after` timestamp (same effect, one less field). Deletion replaces the email with `deleted-<id>@deleted.invalid` so the address can sign up again. A purged user still named as actor in a surviving organization's audit log is kept as a bare id (email and password already erased) because the audit FK is non-nullable. The purge runs from Vercel Cron (`vercel.json`, daily 03:00 UTC) and needs `CRON_SECRET` set in Vercel; without it the endpoint refuses. T001 stays open: its viewport part passes, its real-phone part is [H].
+
+**Implementation notes (2026-10-13)**: Phase B code was started before the T005 records existed, at the owner's request; the XXXV checkpoint still gates any device or store work. Secure storage is `@aparajita/capacitor-secure-storage` 8.x (Capacitor 8, maintained, Keychain/Keystore). `npm run build:app` (scripts/build-app.mjs) is the only release path; `npm run cap:dev` merges `capacitor.config.dev.ts` via `ORDERFLOW_CAP_DEV=1` and refuses a production API. Android debug builds override the HTTPS-only network config from `src/debug/` so live reload works. Icon/splash sources are rendered by `scripts/make-app-resources.mjs`. Version 1.0.0 (build 1) on both platforms. Neither native project has been compiled yet: no JDK/Android SDK on this machine, and iOS needs macOS. T043 needs a built app on emulators/simulators.
 
 **Cannot be done from this Windows machine**: anything marked [H], and every iOS build step
 (T020 can be edited but not built), which needs macOS with Xcode.

@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import LegalLink from "../../components/LegalLink";
 import Button from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { FormField, Input } from "../../components/ui/Field";
@@ -99,13 +100,13 @@ export default function Signup() {
 
           <p className="text-center text-xs text-slate-400 dark:text-slate-500">
             By continuing, you agree to our{" "}
-            <Link to="/terms" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+            <LegalLink to="/terms" className="underline hover:text-slate-600 dark:hover:text-slate-300">
               Terms of Service
-            </Link>{" "}
+            </LegalLink>{" "}
             and{" "}
-            <Link to="/privacy" className="underline hover:text-slate-600 dark:hover:text-slate-300">
+            <LegalLink to="/privacy" className="underline hover:text-slate-600 dark:hover:text-slate-300">
               Privacy Policy
-            </Link>
+            </LegalLink>
             .
           </p>
           <p className="text-center text-sm text-slate-500 dark:text-slate-400">

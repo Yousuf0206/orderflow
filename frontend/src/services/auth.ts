@@ -17,7 +17,7 @@ export function getMe(): Promise<CurrentUserInfo> {
 
 export async function login(email: string, password: string): Promise<void> {
   const tokens = await api.post<TokenPair>("/auth/login", { email, password });
-  setTokens(tokens);
+  await setTokens(tokens);
 }
 
 export async function signup(email: string, password: string, organizationName: string): Promise<void> {
@@ -26,10 +26,11 @@ export async function signup(email: string, password: string, organizationName: 
     password,
     organization_name: organizationName,
   });
-  setTokens(tokens);
+  await setTokens(tokens);
 }
 
 export function logout(): void {
-  setTokens(null);
-  window.location.assign("/login");
+  // The reload must wait for the secure-store delete, or the app could reopen
+  // signed in (spec US2).
+  void setTokens(null).finally(() => window.location.assign("/login"));
 }

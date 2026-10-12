@@ -15,8 +15,7 @@ Shapes: [contracts/app-shell.md](./contracts/app-shell.md),
 
 ```bash
 cd frontend
-VITE_API_BASE_URL=https://purchaseorderflow.vercel.app/api npm run build
-npx cap sync
+npm run build:app     # production API baked in, then cap sync
 npx cap open android   # run on a device
 npx cap open ios       # run on a device (macOS only)
 ```

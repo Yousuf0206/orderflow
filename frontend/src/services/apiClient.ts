@@ -1,20 +1,16 @@
+import { tokenStore, type TokenPair } from "../platform/tokenStore";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-const TOKEN_KEY = "orderflow_tokens";
-
-export interface TokenPair {
-  access_token: string;
-  refresh_token: string;
-}
+export type { TokenPair };
 
 export function getTokens(): TokenPair | null {
-  const raw = localStorage.getItem(TOKEN_KEY);
-  return raw ? (JSON.parse(raw) as TokenPair) : null;
+  return tokenStore.get();
 }
 
-export function setTokens(tokens: TokenPair | null): void {
-  if (tokens) localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
-  else localStorage.removeItem(TOKEN_KEY);
+/** Resolves once the tokens are persisted (secure storage in the app). */
+export function setTokens(tokens: TokenPair | null): Promise<void> {
+  return tokenStore.set(tokens);
 }
 
 export class ApiError extends Error {
@@ -137,7 +133,7 @@ async function request<T>(path: string, options: RequestInit = {}, retry = true)
     if (refreshed) {
       return request<T>(path, options, false);
     }
-    setTokens(null);
+    await setTokens(null);
     window.location.assign("/login");
     throw new ApiError(401, null);
   }
@@ -167,7 +163,7 @@ async function tryRefresh(refreshToken: string): Promise<boolean> {
     });
     if (!resp.ok) return false;
     const tokens = (await resp.json()) as TokenPair;
-    setTokens(tokens);
+    await setTokens(tokens);
     return true;
   } catch {
     return false;

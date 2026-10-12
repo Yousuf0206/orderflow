@@ -26,19 +26,32 @@ import Reports from "./pages/reports/Reports";
 import CompanySettings from "./pages/settings/CompanySettings";
 import DeleteAccount from "./pages/settings/DeleteAccount";
 import TeamMembers from "./pages/settings/TeamMembers";
+import { isNative, startRoute } from "./platform";
+import { isAuthenticated } from "./services/auth";
+
+/** App-only `/`: no landing page, straight to work or sign-in (spec 007 R5). */
+function NativeStart() {
+  return <Navigate to={startRoute(isAuthenticated())} replace />;
+}
 
 export default function App() {
+  // Landing, pricing and billing are web-only (spec 007 R6).
+  const native = isNative();
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <RedirectIfAuthed>
-            <Landing />
-          </RedirectIfAuthed>
-        }
-      />
-      <Route path="/pricing" element={<Pricing />} />
+      {native ? (
+        <Route path="/" element={<NativeStart />} />
+      ) : (
+        <Route
+          path="/"
+          element={
+            <RedirectIfAuthed>
+              <Landing />
+            </RedirectIfAuthed>
+          }
+        />
+      )}
+      {!native && <Route path="/pricing" element={<Pricing />} />}
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsOfService />} />
       <Route
@@ -88,7 +101,7 @@ export default function App() {
         <Route path="/settings/company" element={<CompanySettings />} />
         <Route path="/settings/team" element={<TeamMembers />} />
         <Route path="/settings/account" element={<DeleteAccount />} />
-        <Route path="/billing" element={<Billing />} />
+        {!native && <Route path="/billing" element={<Billing />} />}
         <Route path="/admin" element={<SuperAdmin />} />
       </Route>
 

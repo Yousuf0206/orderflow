@@ -5,6 +5,8 @@ import { BrowserRouter } from "react-router-dom";
 
 import App from "./App";
 import "./index.css";
+import { tokenStore } from "./platform";
+import { hideSplash, styleStatusBar } from "./platform/shell";
 
 /**
  * Retry budget: none.
@@ -23,12 +25,18 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, staleTime: 10_000 } },
 });
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </QueryClientProvider>
-  </React.StrictMode>,
-);
+// In the app, tokens live in secure storage, which is async; load them before
+// anything decides whether the user is signed in. Instant on the web.
+void tokenStore.hydrate().then(() => {
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </React.StrictMode>,
+  );
+  void styleStatusBar();
+  requestAnimationFrame(hideSplash);
+});

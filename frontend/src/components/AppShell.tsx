@@ -18,6 +18,7 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import { usePermissions, type PermissionsState } from "../hooks/usePermissions";
+import { isNative } from "../platform";
 import { describeApiError } from "../services/apiClient";
 import { getMe, logout } from "../services/auth";
 import Notifications from "./Notifications";
@@ -49,7 +50,8 @@ const SETTINGS_ITEMS = [
     to: "/billing",
     label: "Billing",
     icon: Wallet,
-    visible: (caps: PermissionsState) => caps.canManageBilling,
+    // Not in the store apps: no steering to outside payment (spec 007 R6).
+    visible: (caps: PermissionsState) => caps.canManageBilling && !isNative(),
   },
 ] as const;
 
@@ -155,7 +157,7 @@ export default function AppShell() {
       {mobileNavOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-slate-900/50" onClick={() => setMobileNavOpen(false)} />
-          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-white py-4 dark:bg-slate-900">
+          <aside className="safe-area-y absolute inset-y-0 left-0 flex w-64 flex-col bg-white dark:bg-slate-900">
             <div className="flex items-center justify-between px-3">
               <span className="font-semibold text-slate-900 dark:text-white">Menu</span>
               <button
