@@ -497,6 +497,60 @@ server is a wrong remaining balance discovered days later. That is worse than
 no app at all, and it is exactly what an untested "works offline" promise
 produces.
 
+### XXXVIII. A Scan Is a Draft Until a Person Confirms It
+A photo of a delivery note or goods-received note MAY produce a dispatch
+draft, and nothing more. No dispatch row, remaining balance, status, audit
+entry for a dispatch, or notification MAY change until a signed-in user with
+permission to record dispatches reviews the draft and confirms it. A confirmed
+scan MUST be saved through the same dispatch endpoint, validation, and
+over-dispatch warning as a typed dispatch (Principles II, XXIX, XXX); there is
+no separate "scanned" dispatch type and no OCR-derived figure stored as truth
+beside the confirmed quantities. A draft that is abandoned leaves the order
+exactly as it was.
+
+**Rationale:** a misread "50" as "500" that saves itself is a wrong remaining
+balance on the first day, and Principle II exists so that never happens. The
+scan saves typing; the person still owns the number.
+
+### XXXIX. Show Doubt, Allow Every Fix
+The draft review MUST mark fields the extractor is unsure of, and MUST let the
+user change every quantity and every line match — including removing a line or
+adding one the scan missed — before confirming. Lines MUST be matched to the
+open purchase order the user started from; a scan started without one MUST
+require the user to choose the purchase order before the draft can be
+confirmed, and MUST NOT guess one silently. Quantities MUST stay in each line's
+own unit (Principle XXIX).
+
+**Rationale:** a reader that hides its uncertainty trains people to trust it
+exactly where it is wrong. Matching to the order on screen is also the cheapest
+way to be right: the candidate lines are already known.
+
+### XL. Honest Claims About Scanning
+Scanning MUST NOT be described — on the landing page, in a store listing, in
+beta messaging, or in the app — as 100% accurate, as removing all typing, or as
+working offline. Scanning requires a connection in v1, and an unreachable
+service MUST be reported as Principles XII and XXXVII require, with no queued
+scan presented as pending or saved. Scanning MUST NOT turn OrderFlow into an
+inventory, stock, or document-management product: delivery-note images are
+inputs to a dispatch draft, not a filing system (Principle XX).
+
+**Rationale:** "snap and done" gets a trial; the first wrong figure loses the
+customer, and Principle XI already says which of those matters.
+
+### XLI. Images Are Kept Only as Long as They Are Needed
+A delivery-note image MAY be stored only as long as needed to produce the
+draft and, where the user or organization has agreed, to support a later
+query about that dispatch. Retention, deletion, and any third-party processor
+of images MUST be stated in the live privacy policy before scanning ships
+(Principle XXIV), and images MUST be removed with the account or organization
+under Principle VII's deletion terms. Images MUST be tenant-scoped like every
+other record (Principle I) and MUST NOT be used to train a model without
+explicit consent.
+
+**Rationale:** delivery notes carry customer names, prices, and vehicle
+numbers. Keeping them by default turns a typing shortcut into a liability the
+trader never asked for.
+
 ## Constraints
 
 - Primary market: SME traders (steel, cement, hardware, building materials).
@@ -505,6 +559,9 @@ produces.
   are in scope as clients of it, distributed through the App Store and Play
   Store (or TestFlight / internal testing tracks), under Principles
   XXXIII–XXXVII. A Mac app is out of scope.
+- Scanning a delivery note or GRN into a dispatch draft is in scope under
+  Principles XXXVIII–XLI. Inventory, stock on hand, and general document
+  storage are not.
 - Design with offline-friendly thinking in mind, though an online-first
   implementation is acceptable for MVP.
 - Currency and timezone MUST be configurable per organization; neither may
@@ -637,4 +694,9 @@ Principles XXXIII through XXXVII are not phase-scoped. One API, both platforms
 together, a mobile web worth wrapping, tokens in secure storage, and no offline
 promise without offline are conditions of shipping an app at all.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-12
+Principles XXXVIII through XLI are not phase-scoped. They apply to any feature
+that reads a document image into a dispatch, on the web or in an app; only
+XL's "requires a connection" statement may be lifted, and only by meeting
+Principle XXXVII first.
+
+**Version**: 2.1.0 | **Ratified**: 2026-10-06 | **Last Amended**: 2026-10-13
