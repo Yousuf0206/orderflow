@@ -92,21 +92,59 @@ export default function ScanDraftPanel({
           {reading ? "Reading the note..." : "Scan delivery note"}
         </Button>
         {error && (
-          <p role="alert" className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
-            {error}
-          </p>
+          <div role="alert" className="space-y-3 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
+            <p>{error}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="secondary" onClick={scan} disabled={reading}>
+                Retake
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setError(null)}>
+                Type it instead
+              </Button>
+            </div>
+          </div>
         )}
       </div>
     );
   }
 
-  const unmatched = draft.lines
-    .map((row, index) => ({ row, index }))
-    .filter(({ row }) => row.matched_line_id === null);
-  const usedLineIds = new Set([
-    ...draft.lines.map((r) => r.matched_line_id).filter((id): id is string => !!id),
-    ...Object.values(assigned).filter(Boolean),
-  ]);
+  const rows = draft.lines.map((row, index) => ({ row, index }));
+  const unmatched = rows.filter(({ row }) => row.matched_line_id === null);
+  const matched = rows.filter(({ row }) => row.matched_line_id !== null);
+  // The line each row currently sits on: the user's choice, else the scan's match.
+  const lineOf = (index: number) => (index in assigned ? assigned[index] : draft.lines[index].matched_line_id ?? "");
+  const usedLineIds = new Set(rows.map(({ index }) => lineOf(index)).filter(Boolean));
+
+  function rowSelect(index: number, emptyLabel: string) {
+    return (
+      <select
+        className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+        value={lineOf(index)}
+        onChange={(e) => {
+          setAssigned((prev) => ({ ...prev, [index]: e.target.value }));
+          onAssign(index, e.target.value);
+        }}
+      >
+        <option value="">{emptyLabel}</option>
+        {openLines
+          .filter((line) => !usedLineIds.has(line.id) || lineOf(index) === line.id)
+          .map((line) => (
+            <option key={line.id} value={line.id}>
+              {line.material} ({line.unit})
+            </option>
+          ))}
+      </select>
+    );
+  }
+
+  function rowLabel(row: ScanDraft["lines"][number]) {
+    return (
+      <span className="block text-slate-600 dark:text-slate-300">
+        “{row.raw_text}”
+        {row.qty.value !== null && ` — ${formatQty(Number(row.qty.value))}${row.unit ? ` ${row.unit}` : ""}`}
+      </span>
+    );
+  }
 
   return (
     <div
@@ -137,30 +175,26 @@ export default function ScanDraftPanel({
           <p className="font-medium text-slate-700 dark:text-slate-200">Unmatched — pick a line or skip</p>
           {unmatched.map(({ row, index }) => (
             <label key={index} className="block space-y-1">
-              <span className="block text-slate-600 dark:text-slate-300">
-                “{row.raw_text}”
-                {row.qty.value !== null && ` — ${formatQty(Number(row.qty.value))}${row.unit ? ` ${row.unit}` : ""}`}
-              </span>
-              <select
-                className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
-                value={assigned[index] ?? ""}
-                onChange={(e) => {
-                  setAssigned((prev) => ({ ...prev, [index]: e.target.value }));
-                  onAssign(index, e.target.value);
-                }}
-              >
-                <option value="">Skip — not on this order</option>
-                {openLines
-                  .filter((line) => !usedLineIds.has(line.id) || assigned[index] === line.id)
-                  .map((line) => (
-                    <option key={line.id} value={line.id}>
-                      {line.material} ({line.unit})
-                    </option>
-                  ))}
-              </select>
+              {rowLabel(row)}
+              {rowSelect(index, "Skip — not on this order")}
             </label>
           ))}
         </div>
+      )}
+
+      {matched.length > 0 && (
+        <details className="space-y-2" data-testid="scan-matched">
+          <summary className="cursor-pointer font-medium text-slate-700 dark:text-slate-200">
+            Matched rows — change or remove
+          </summary>
+          {matched.map(({ row, index }) => (
+            <label key={index} className="mt-2 block space-y-1">
+              {rowLabel(row)}
+              {rowSelect(index, "Remove — don't use this row")}
+            </label>
+          ))}
+          <p className="text-slate-600 dark:text-slate-300">To add an item the scan missed, type its quantity below.</p>
+        </details>
       )}
 
       <div className="flex flex-wrap gap-2">

@@ -141,8 +141,8 @@ describe("scan draft", () => {
   it("lets an unmatched row be placed on a line, then confirms with the scan id", async () => {
     const fetchMock = mockApi();
     renderPage();
-    const panel = await scan();
-    fireEvent.change(within(panel).getByRole("combobox"), { target: { value: "l3" } });
+    await scan();
+    fireEvent.change(within(screen.getByTestId("scan-unmatched")).getByRole("combobox"), { target: { value: "l3" } });
     expect(qtyInput(/Sand/).value).toBe("2");
     fireEvent.change(qtyInput(/Steel bar 12mm/), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: /confirm dispatch/i }));
@@ -177,6 +177,34 @@ describe("scan draft", () => {
     expect(await screen.findByText(message)).toBeInTheDocument();
     expect(screen.queryByTestId("scan-draft")).not.toBeInTheDocument();
     expect(dispatchPosts(fetchMock)).toHaveLength(0);
+  });
+
+  it("a matched row can be removed or moved to another line", async () => {
+    const fetchMock = mockApi();
+    renderPage();
+    await scan();
+    const [cement, steel] = within(screen.getByTestId("scan-matched")).getAllByRole("combobox");
+    fireEvent.change(cement, { target: { value: "" } });
+    expect(qtyInput(/Cement OPC-53/).value).toBe("");
+    fireEvent.change(steel, { target: { value: "l3" } });
+    expect(qtyInput(/Steel bar 12mm/).value).toBe("");
+    expect(qtyInput(/Sand/).value).toBe("5");
+    fireEvent.click(screen.getByRole("button", { name: /confirm dispatch/i }));
+    await waitFor(() => expect(dispatchPosts(fetchMock)).toHaveLength(1));
+    expect(dispatchPosts(fetchMock)[0].lines).toEqual([{ purchase_order_line_id: "l3", qty: 5 }]);
+  });
+
+  it("an unreadable note offers Retake and Type it instead", async () => {
+    const fetchMock = mockApi({ parse: () => json({ detail: "unreadable" }, 422) });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: /scan delivery note/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /type it instead/i }));
+    expect(screen.queryByText(/couldn't read this note/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /scan delivery note/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /retake/i }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([u]) => String(u).includes("parse-document"))).toHaveLength(3),
+    );
   });
 
   it("a cancelled photo does nothing", async () => {

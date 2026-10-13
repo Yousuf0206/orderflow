@@ -75,9 +75,9 @@ export default function PurchaseOrderDetail() {
     setSubmitError(null);
   }
 
-  /** The user placed an unmatched read row on a line of this order, or skipped it. */
+  /** The user placed a read row on a line of this order, moved it, or removed it. */
   function assignRow(row: number, lineId: string) {
-    const previous = rowLines[row];
+    const previous = row in rowLines ? rowLines[row] : draft?.lines[row]?.matched_line_id ?? "";
     const value = draft?.lines[row]?.qty.value ?? "";
     setQtys((prev) => {
       const next = { ...prev };
